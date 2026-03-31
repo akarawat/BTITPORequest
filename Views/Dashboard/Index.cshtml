@@ -1,0 +1,210 @@
+@model BTITPORequest.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)> { ("Dashboard", null) };
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h4 class="fw-bold mb-0">Dashboard</h4>
+        <p class="text-muted mb-0" style="font-size:.85rem;">IT Purchase Order Summary</p>
+    </div>
+
+    <!-- Date Filter -->
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="input-group input-group-sm" style="width:auto;">
+            <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+            <input type="date" name="dateFrom" class="form-control"
+                   value="@Model.DateFrom.ToString("yyyy-MM-dd")" />
+            <span class="input-group-text">to</span>
+            <input type="date" name="dateTo" class="form-control"
+                   value="@Model.DateTo.ToString("yyyy-MM-dd")" />
+            <button class="btn btn-primary btn-sm" type="submit">
+                <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-primary-subtle text-primary"><i class="bi bi-file-earmark-text"></i></div>
+            <div class="bt-stat-value">@Model.TotalPO</div>
+            <div class="bt-stat-label">Total POs</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-success-subtle text-success"><i class="bi bi-currency-exchange"></i></div>
+            <div class="bt-stat-value">@Model.TotalAmount.ToString("N0")</div>
+            <div class="bt-stat-label">Total Baht</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-warning-subtle text-warning"><i class="bi bi-hourglass-split"></i></div>
+            <div class="bt-stat-value">@Model.PendingCount</div>
+            <div class="bt-stat-label">Pending</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-success-subtle text-success"><i class="bi bi-check-circle"></i></div>
+            <div class="bt-stat-value">@Model.CompletedCount</div>
+            <div class="bt-stat-label">Completed</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-danger-subtle text-danger"><i class="bi bi-x-circle"></i></div>
+            <div class="bt-stat-value">@Model.RejectedCount</div>
+            <div class="bt-stat-label">Rejected</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-secondary-subtle text-secondary"><i class="bi bi-pencil-square"></i></div>
+            <div class="bt-stat-value">@Model.DraftCount</div>
+            <div class="bt-stat-label">Drafts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+    <!-- Daily Amount Chart -->
+    <div class="col-lg-8">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Daily PO Amount (Baht)</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="dailyChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Status Doughnut -->
+    <div class="col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-pie-chart me-2 text-primary"></i>Status Breakdown</h6>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <canvas id="statusChart" width="200" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Actions + Recent -->
+<div class="row g-3">
+    @if (Model.PendingMyAction.Any())
+    {
+        <div class="col-12">
+            <div class="card border-0 shadow-sm border-start border-warning border-4">
+                <div class="card-header bg-transparent border-0">
+                    <h6 class="fw-semibold mb-0 text-warning">
+                        <i class="bi bi-bell-fill me-2"></i>Pending My Action (@Model.PendingMyAction.Count)
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Company</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var po in Model.PendingMyAction)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@po.PONumber</td>
+                                        <td>@po.VendorCompany</td>
+                                        <td>@po.GrandTotal.ToString("N2")</td>
+                                        <td><span class="badge bg-@po.StatusBadgeClass">@po.StatusLabel</span></td>
+                                        <td>
+                                            <a asp-controller="PORequest" asp-action="Detail" asp-route-id="@po.POId"
+                                               class="btn btn-sm btn-primary">
+                                                <i class="bi bi-arrow-right-circle me-1"></i>Review
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Recent PO Requests</h6>
+                <a asp-controller="PORequest" asp-action="Index" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>PO Number</th>
+                                <th>Date</th>
+                                <th>Company</th>
+                                <th>Subject</th>
+                                <th class="text-end">Grand Total</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Model.RecentPOs.Any())
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>No PO records in this period
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var po in Model.RecentPOs)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@po.PONumber</td>
+                                    <td>@po.PODate.ToString("dd/MM/yyyy")</td>
+                                    <td>@po.VendorCompany</td>
+                                    <td class="text-truncate" style="max-width:200px;">@po.Subject</td>
+                                    <td class="text-end fw-semibold">@po.GrandTotal.ToString("N2")</td>
+                                    <td><span class="badge bg-@po.StatusBadgeClass">@po.StatusLabel</span></td>
+                                    <td>
+                                        <a asp-controller="PORequest" asp-action="Detail" asp-route-id="@po.POId"
+                                           class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+    <script>
+        var dailyData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.DailyAmounts));
+        var statusData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.StatusSummary));
+        initDashboardCharts(dailyData, statusData);
+    </script>
+}

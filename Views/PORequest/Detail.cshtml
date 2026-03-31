@@ -1,0 +1,306 @@
+@model BTITPORequest.Models.PORequestModel
+@{
+    ViewData["Title"] = $"PO {Model.PONumber}";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)>
+    {
+        ("Dashboard", "/"),
+        ("PO Requests", "/PORequest"),
+        (Model.PONumber, null)
+    };
+    string userSam = User.FindFirst("samacc")?.Value ?? "";
+}
+
+<!-- Top Bar -->
+<div class="d-flex flex-wrap align-items-start justify-content-between mb-4 gap-2">
+    <div>
+        <div class="d-flex align-items-center gap-2">
+            <h4 class="fw-bold mb-0">@Model.PONumber</h4>
+            <span class="badge bg-@Model.StatusBadgeClass fs-6">@Model.StatusLabel</span>
+        </div>
+        <p class="text-muted mb-0" style="font-size:.85rem;">
+            Created by @Model.RequesterName &bull; @Model.CreatedAt.ToString("dd MMM yyyy HH:mm")
+        </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+        @if (Model.CanEdit)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.POId" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+        }
+        @if (Model.CanDownloadPDF)
+        {
+            <a asp-action="DownloadPdf" asp-route-id="@Model.POId" class="btn btn-success btn-sm">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+            </a>
+        }
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Left: PO Document Preview -->
+    <div class="col-lg-8">
+
+        <!-- PO Card -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <!-- Mini Header mimicking the paper form -->
+                <div class="d-flex justify-content-between align-items-start mb-3 pb-3 border-bottom">
+                    <div>
+                        <div class="text-muted" style="font-size:.75rem;">TradeRegister No. 556201342</div>
+                        <div class="text-muted" style="font-size:.75rem;">Input Value Added Tax No. 0515533000050</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold text-primary" style="font-size:1.1rem;">made to create BERNINA</div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mb-3">
+                    <div>
+                        <div class="fw-bold" style="font-size:1rem;">PURCHASE ORDER No.</div>
+                        <div class="fw-bold text-primary fs-5">@Model.PONumber</div>
+                    </div>
+                    <div class="text-end" style="font-size:.85rem;">
+                        <div><span class="text-muted">Date:</span> @Model.PODate.ToString("M/d/yyyy")</div>
+                        <div><span class="text-muted">For BT. Internal Ref. A/C:</span> @Model.InternalRefAC</div>
+                        @if (!string.IsNullOrEmpty(Model.CreditNo))
+                        {
+                            <div><span class="text-muted">Credit No:</span> @Model.CreditNo</div>
+                        }
+                    </div>
+                </div>
+
+                <table class="table table-borderless mb-2" style="font-size:.85rem;">
+                    <tr><td class="fw-semibold py-1" style="width:100px;">Attn:</td><td>@Model.VendorAttn</td></tr>
+                    <tr><td class="fw-semibold py-1">Company:</td><td>@Model.VendorCompany</td></tr>
+                    <tr><td class="fw-semibold py-1">Address:</td><td>@Model.VendorAddress</td></tr>
+                    <tr><td class="fw-semibold py-1">Tel No.:</td><td>@Model.VendorTel</td>
+                        <td class="fw-semibold py-1">Fax No.:</td><td>@Model.VendorFax</td></tr>
+                    <tr><td class="fw-semibold py-1">E-mail:</td><td>@Model.VendorEmail</td></tr>
+                    <tr><td class="fw-semibold py-1">Ref.:</td><td>@Model.RefNo</td></tr>
+                    <tr>
+                        <td class="fw-semibold py-1">Subject:</td>
+                        <td colspan="3">@Model.Subject</td>
+                    </tr>
+                </table>
+
+                <!-- Line Items -->
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm" style="font-size:.85rem;">
+                        <thead class="bt-table-header">
+                            <tr>
+                                <th>#</th>
+                                <th>Description</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Amount/Baht</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.LineItems)
+                            {
+                                <tr>
+                                    <td>@item.LineNo</td>
+                                    <td>@item.Description</td>
+                                    <td class="text-center">@item.Quantity.ToString("N3")</td>
+                                    <td class="text-end">@item.UnitPrice.ToString("N2")</td>
+                                    <td class="text-end fw-semibold">@item.Amount.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="4" class="text-end fw-semibold">Total</td>
+                                <td class="text-end">@Model.Total.ToString("N2")</td>
+                            </tr>
+                            <tr>
+                                <td colspan="4" class="text-end fw-semibold">Vat @Model.VatPercent.ToString("0")%</td>
+                                <td class="text-end">@Model.VatAmount.ToString("N2")</td>
+                            </tr>
+                            <tr class="table-active">
+                                <td colspan="4" class="text-end fw-bold">Grand total</td>
+                                <td class="text-end fw-bold text-primary">@Model.GrandTotal.ToString("N2")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="text-center text-muted fst-italic mb-3" style="font-size:.85rem;">
+                    ( @Model.GrandTotalText )
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Notes))
+                {
+                    <div class="border rounded p-2 bg-light mb-3" style="font-size:.8rem;">
+                        <strong>NOTES:</strong>
+                        @foreach (var line in Model.Notes.Split('\n'))
+                        {
+                            <div>@line</div>
+                        }
+                    </div>
+                }
+
+                <!-- Signature Row -->
+                <div class="row text-center g-2 mt-2">
+                    <div class="col-3">
+                        <div class="border rounded p-2" style="min-height:80px;">
+                            <div class="small text-muted mb-1">For Supplier Sign & Feedback</div>
+                            <div class="bt-sign-placeholder"></div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="border rounded p-2 @(string.IsNullOrEmpty(Model.RequesterSignUrl) ? "" : "border-success")" style="min-height:80px;">
+                            <div class="small text-muted mb-1">Requested:</div>
+                            @if (!string.IsNullOrEmpty(Model.RequesterSignUrl))
+                            {
+                                <div class="text-success small"><i class="bi bi-patch-check-fill"></i> Signed</div>
+                            }
+                            <div class="small fw-semibold mt-1">@Model.RequesterName</div>
+                            <div class="text-muted" style="font-size:.7rem;">@Model.RequesterTitle</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="border rounded p-2 @(string.IsNullOrEmpty(Model.IssuerSignUrl) ? "" : "border-success")" style="min-height:80px;">
+                            <div class="small text-muted mb-1">Issued:</div>
+                            @if (!string.IsNullOrEmpty(Model.IssuerSignUrl))
+                            {
+                                <div class="text-success small"><i class="bi bi-patch-check-fill"></i> Signed</div>
+                            }
+                            <div class="small fw-semibold mt-1">@Model.IssuerName</div>
+                            <div class="text-muted" style="font-size:.7rem;">@Model.IssuerTitle</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="border rounded p-2 @(string.IsNullOrEmpty(Model.Approver2SignUrl) ? "" : "border-success")" style="min-height:80px;">
+                            <div class="small text-muted mb-1">Authorized:</div>
+                            @if (!string.IsNullOrEmpty(Model.Approver2SignUrl))
+                            {
+                                <div class="text-success small"><i class="bi bi-patch-check-fill"></i> Signed</div>
+                            }
+                            <div class="small fw-semibold mt-1">@(Model.Approver2Name ?? Model.Approver1Name)</div>
+                            <div class="text-muted" style="font-size:.7rem;">@(Model.Approver2Title ?? Model.Approver1Title)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Workflow & Actions -->
+    <div class="col-lg-4">
+
+        <!-- Action Panel -->
+        @if (Model.CanSubmit || Model.CanIssue || Model.CanApprove1 || Model.CanApprove2)
+        {
+            <div class="card border-0 shadow-sm border-start border-primary border-4 mb-3">
+                <div class="card-header bg-transparent border-0">
+                    <h6 class="fw-semibold mb-0 text-primary"><i class="bi bi-lightning-charge me-2"></i>Action Required</h6>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    @if (Model.CanSubmit)
+                    {
+                        <form asp-action="Submit" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.POId" />
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-send me-2"></i>Submit & Sign as Requester
+                            </button>
+                        </form>
+                    }
+                    @if (Model.CanIssue)
+                    {
+                        <form asp-action="Issue" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.POId" />
+                            <button type="submit" class="btn btn-info w-100">
+                                <i class="bi bi-pen me-2"></i>Issue & Sign
+                            </button>
+                        </form>
+                    }
+                    @if (Model.CanApprove1)
+                    {
+                        <a asp-action="Approve" asp-route-id="@Model.POId" asp-route-level="1"
+                           class="btn btn-success w-100">
+                            <i class="bi bi-check-circle me-2"></i>Approve (Level 1)
+                        </a>
+                    }
+                    @if (Model.CanApprove2)
+                    {
+                        <a asp-action="Approve" asp-route-id="@Model.POId" asp-route-level="2"
+                           class="btn btn-success w-100">
+                            <i class="bi bi-check-circle-fill me-2"></i>Final Approve (Level 2)
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Workflow Steps -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-diagram-3 me-2 text-primary"></i>Approval Flow</h6>
+            </div>
+            <div class="card-body">
+                @{
+                    var steps = new[]
+                    {
+                        ("Draft", POStatus.Draft, "bi-pencil-square", "secondary"),
+                        ("Requested", POStatus.Requested, "bi-person-check", "primary"),
+                        ("Issued", POStatus.Issued, "bi-send-check", "info"),
+                        ("Authorized", POStatus.Authorized, "bi-shield-check", "warning"),
+                        ("Completed", POStatus.Completed, "bi-trophy", "success"),
+                    };
+                    int currentStep = (int)Model.Status;
+                }
+                <div class="bt-workflow">
+                    @foreach (var (label, status, icon, color) in steps)
+                    {
+                        bool isDone = (int)Model.Status > (int)status || Model.Status == status;
+                        bool isCurrent = Model.Status == status;
+                        <div class="bt-workflow-step @(isDone ? "done" : "") @(isCurrent ? "current" : "")">
+                            <div class="bt-workflow-icon text-@color">
+                                <i class="bi @icon"></i>
+                            </div>
+                            <div class="bt-workflow-label">@label</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Approval History -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>History</h6>
+            </div>
+            <div class="card-body p-0">
+                @if (!Model.ApprovalHistory.Any())
+                {
+                    <p class="text-muted p-3 mb-0" style="font-size:.85rem;">No history yet.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var h in Model.ApprovalHistory.OrderByDescending(x => x.ActionDate))
+                        {
+                            <li class="list-group-item px-3 py-2">
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-semibold" style="font-size:.85rem;">@h.Action</span>
+                                    <span class="text-muted" style="font-size:.75rem;">@h.ActionDate.ToString("dd/MM HH:mm")</span>
+                                </div>
+                                <div class="text-muted" style="font-size:.75rem;">@h.ActionByName</div>
+                                @if (!string.IsNullOrEmpty(h.Remark))
+                                {
+                                    <div class="text-danger" style="font-size:.75rem;">@h.Remark</div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>

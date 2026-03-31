@@ -1,0 +1,11 @@
+@model BTITPORequest.Models.POCreateViewModel
+@{
+    ViewData["Title"] = $"Edit PO — {Model.PO.PONumber}";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)>
+    {
+        ("Dashboard", "/"),
+        ("PO Requests", "/PORequest"),
+        ($"Edit {Model.PO.PONumber}", null)
+    };
+}
+@await Html.PartialAsync("Create", Model)

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] != null ? ViewData["Title"] + " — " : "")IT PO Request | BERNINA Thailand</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bt-body">
+
+    <!-- Sidebar -->
+    <nav id="sidebar" class="bt-sidebar d-flex flex-column">
+        <div class="bt-sidebar-brand d-flex align-items-center px-3 py-3">
+            <div class="brand-logo me-2">
+                <i class="bi bi-scissors fs-4 text-white"></i>
+            </div>
+            <div>
+                <div class="fw-bold text-white" style="font-size:.9rem;letter-spacing:.5px;">BERNINA Thailand</div>
+                <div class="text-white-50" style="font-size:.7rem;">IT Purchase Order</div>
+            </div>
+            <button class="btn btn-link text-white-50 ms-auto d-lg-none" id="sidebarClose">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <ul class="nav flex-column px-2 mt-2 flex-grow-1">
+            <li class="nav-item">
+                <a class="bt-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Dashboard" ? "active" : "")"
+                   asp-controller="Dashboard" asp-action="Index">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+
+            <li class="nav-section-label">Purchase Orders</li>
+
+            <li class="nav-item">
+                <a class="bt-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "PORequest" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"
+                   asp-controller="PORequest" asp-action="Index">
+                    <i class="bi bi-file-earmark-text"></i> All PO Requests
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="bt-nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Create" ? "active" : "")"
+                   asp-controller="PORequest" asp-action="Create">
+                    <i class="bi bi-plus-circle"></i> New PO Request
+                </a>
+            </li>
+
+            <li class="nav-section-label">My Queue</li>
+            <li class="nav-item">
+                <a class="bt-nav-link" asp-controller="PORequest" asp-action="Index" asp-route-status="pending">
+                    <i class="bi bi-hourglass-split"></i> Pending My Action
+                    @if (ViewBag.PendingCount != null && (int)ViewBag.PendingCount > 0)
+                    {
+                        <span class="badge bg-danger ms-auto">@ViewBag.PendingCount</span>
+                    }
+                </a>
+            </li>
+        </ul>
+
+        <div class="bt-sidebar-footer px-3 py-2">
+            <div class="d-flex align-items-center gap-2">
+                <div class="bt-avatar">@(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")</div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-white fw-semibold text-truncate" style="font-size:.8rem;">
+                        @User.FindFirst("samacc")?.Value
+                    </div>
+                    <div class="text-white-50" style="font-size:.7rem;">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</div>
+                </div>
+                <a asp-controller="Auth" asp-action="Logout" class="btn btn-sm btn-outline-light" title="Sign out">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Overlay for mobile -->
+    <div id="sidebarOverlay" class="bt-overlay d-lg-none"></div>
+
+    <!-- Main content -->
+    <div class="bt-main">
+        <!-- Top bar -->
+        <header class="bt-topbar d-flex align-items-center px-3 gap-3">
+            <button class="btn btn-outline-secondary btn-sm d-lg-none" id="sidebarToggle">
+                <i class="bi bi-list fs-5"></i>
+            </button>
+            <nav aria-label="breadcrumb" class="flex-grow-1">
+                <ol class="breadcrumb mb-0">
+                    @if (ViewData["BreadcrumbItems"] is List<(string Label, string? Url)> items)
+                    {
+                        foreach (var (label, url) in items)
+                        {
+                            if (string.IsNullOrEmpty(url))
+                            {
+                                <li class="breadcrumb-item active">@label</li>
+                            }
+                            else
+                            {
+                                <li class="breadcrumb-item"><a href="@url">@label</a></li>
+                            }
+                        }
+                    }
+                </ol>
+            </nav>
+        </header>
+
+        <!-- Toast notifications -->
+        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999">
+            @if (TempData["Success"] != null)
+            {
+                <div class="toast align-items-center text-bg-success border-0 show" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            }
+            @if (TempData["Warning"] != null)
+            {
+                <div class="toast align-items-center text-bg-warning border-0 show" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["Warning"]</div>
+                        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="toast align-items-center text-bg-danger border-0 show" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body"><i class="bi bi-x-circle me-2"></i>@TempData["Error"]</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Page content -->
+        <main class="bt-content">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

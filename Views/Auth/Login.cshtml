@@ -1,0 +1,102 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Sign In";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — IT PO Request</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <style>
+        body { background: linear-gradient(135deg, #1a5676 0%, #0d3349 100%); min-height: 100vh; }
+        .login-card { border: none; border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,.35); }
+        .login-brand { background: linear-gradient(135deg, #1a5676, #0d3349); border-radius: 16px 16px 0 0; }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+    <div class="container" style="max-width:440px;">
+        <div class="card login-card">
+            <div class="login-brand text-center py-4 px-3">
+                <i class="bi bi-scissors fs-2 text-white"></i>
+                <div class="text-white fw-bold mt-2" style="font-size:1.2rem;letter-spacing:1px;">BERNINA Thailand</div>
+                <div class="text-white-50" style="font-size:.8rem;">IT Purchase Order System</div>
+            </div>
+            <div class="card-body p-4">
+                <h5 class="mb-1 fw-bold">Welcome back</h5>
+                <p class="text-muted mb-4" style="font-size:.85rem;">Sign in with your BERNINA network account</p>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            @err.ErrorMessage
+                        }
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                <form asp-controller="Auth" asp-action="Login" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" name="username" class="form-control" placeholder="AD username"
+                                   autocomplete="username" required autofocus />
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" name="password" id="passwordInput" class="form-control"
+                                   placeholder="Password" autocomplete="current-password" required />
+                            <button class="btn btn-outline-secondary" type="button" id="togglePwd">
+                                <i class="bi bi-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </button>
+                </form>
+
+                <hr class="my-3" />
+                <div class="text-center text-muted" style="font-size:.75rem;">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Authentication via BERNINA Digital Sign API
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-3 text-white-50" style="font-size:.75rem;">
+            &copy; @DateTime.Now.Year BERNINA Thailand — IT PO Request System
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('togglePwd').addEventListener('click', function () {
+            var inp = document.getElementById('passwordInput');
+            var icon = document.getElementById('eyeIcon');
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                inp.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        });
+    </script>
+</body>
+</html>

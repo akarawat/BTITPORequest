@@ -1,0 +1,203 @@
+@model BTITPORequest.Models.POCreateViewModel
+@{
+    ViewData["Title"] = "New PO Request";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)>
+    {
+        ("Dashboard", "/"),
+        ("PO Requests", "/PORequest"),
+        ("New PO", null)
+    };
+    bool isEdit = Model.PO.POId > 0;
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">@(isEdit ? $"Edit PO — {Model.PO.PONumber}" : "New PO Request")</h4>
+        <p class="text-muted mb-0" style="font-size:.85rem;">Fill in the purchase order details below</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<form id="poForm" asp-action="@(isEdit ? "Edit" : "Create")" method="post">
+    @Html.AntiForgeryToken()
+    @if (isEdit)
+    {
+        <input type="hidden" asp-for="PO.POId" />
+    }
+    <input type="hidden" id="lineItemsJson" name="lineItemsJson" />
+
+    <div class="row g-3">
+        <!-- Left column: Vendor & Header -->
+        <div class="col-lg-8">
+
+            <!-- PO Header -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-file-earmark me-2 text-primary"></i>PO Header</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
+                            <input type="date" asp-for="PO.PODate" class="form-control" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Internal Ref. A/C</label>
+                            <input type="text" asp-for="PO.InternalRefAC" class="form-control" placeholder="e.g. 438700/310" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Credit No.</label>
+                            <input type="text" asp-for="PO.CreditNo" class="form-control" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Ref. No.</label>
+                            <input type="text" asp-for="PO.RefNo" class="form-control" placeholder="e.g. CPS1095/67" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
+                            <input type="text" asp-for="PO.Subject" class="form-control"
+                                   placeholder="please supply the following goods / services to us:" required />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vendor Info -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-building me-2 text-primary"></i>Vendor / Supplier</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Attn (Contact Person) <span class="text-danger">*</span></label>
+                            <input type="text" asp-for="PO.VendorAttn" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" asp-for="PO.VendorCompany" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Address <span class="text-danger">*</span></label>
+                            <textarea asp-for="PO.VendorAddress" class="form-control" rows="2" required></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Tel No.</label>
+                            <input type="text" asp-for="PO.VendorTel" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Fax No.</label>
+                            <input type="text" asp-for="PO.VendorFax" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">E-mail</label>
+                            <input type="email" asp-for="PO.VendorEmail" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>Line Items</h6>
+                    <button type="button" class="btn btn-sm btn-primary" id="addLineBtn">
+                        <i class="bi bi-plus me-1"></i>Add Item
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0" id="lineTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:40px;">#</th>
+                                    <th>Description</th>
+                                    <th style="width:110px;">Quantity</th>
+                                    <th style="width:130px;">Unit Price</th>
+                                    <th style="width:130px;">Amount</th>
+                                    <th style="width:40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="lineBody">
+                                <!-- Rows injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: Totals & Notes & Actions -->
+        <div class="col-lg-4">
+
+            <!-- VAT & Totals -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-calculator me-2 text-primary"></i>Totals</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">VAT %</label>
+                        <select asp-for="PO.VatPercent" class="form-select" id="vatSelect">
+                            <option value="0">0% (Exempt)</option>
+                            <option value="7">7%</option>
+                        </select>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Subtotal</span>
+                        <span class="fw-semibold" id="displayTotal">0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">VAT</span>
+                        <span class="fw-semibold" id="displayVat">0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between pt-2 border-top">
+                        <span class="fw-bold">Grand Total</span>
+                        <span class="fw-bold fs-5 text-primary" id="displayGrand">0.00</span>
+                    </div>
+                    <div class="mt-2 text-muted" style="font-size:.75rem;" id="amountWords"></div>
+
+                    <!-- Hidden fields for form submission -->
+                    <input type="hidden" asp-for="PO.Total" id="hiddenTotal" />
+                    <input type="hidden" asp-for="PO.VatAmount" id="hiddenVat" />
+                    <input type="hidden" asp-for="PO.GrandTotal" id="hiddenGrand" />
+                    <input type="hidden" asp-for="PO.GrandTotalText" id="hiddenGrandText" />
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-sticky me-2 text-primary"></i>Notes</h6>
+                </div>
+                <div class="card-body">
+                    <textarea asp-for="PO.Notes" class="form-control" rows="5" style="font-size:.8rem;"></textarea>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-grid gap-2">
+                    <button type="submit" name="submitNow" value="false" class="btn btn-outline-secondary">
+                        <i class="bi bi-floppy me-2"></i>Save as Draft
+                    </button>
+                    <button type="submit" name="submitNow" value="true" class="btn btn-primary"
+                            id="submitAndSignBtn">
+                        <i class="bi bi-send me-2"></i>Submit & Sign
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="~/js/po-form.js" asp-append-version="true"></script>
+    <script>
+        var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
+        initPOForm(initialItems);
+    </script>
+}
