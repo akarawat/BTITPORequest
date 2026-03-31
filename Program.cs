@@ -5,10 +5,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// MVC + Razor Pages
-builder.Services.AddControllersWithViews().AddNewtonsoftJson(); // requires: Microsoft.AspNetCore.Mvc.NewtonsoftJson 8.0.0
+// MVC — ใช้ built-in System.Text.Json (ไม่ต้องการ package เพิ่ม)
+builder.Services.AddControllersWithViews();
 
-// Cookie Authentication
+// Cookie Authentication (built-in ใน .NET 8 ไม่ต้อง install package แยก)
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {

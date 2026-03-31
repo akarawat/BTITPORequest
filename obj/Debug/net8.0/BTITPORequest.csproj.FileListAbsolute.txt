@@ -1,0 +1,10 @@
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.csproj.AssemblyReference.cache
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.GeneratedMSBuildEditorConfig.editorconfig
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.AssemblyInfoInputs.cache
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.AssemblyInfo.cs
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.csproj.CoreCompileInputs.cache
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.MvcApplicationPartsAssemblyInfo.cache
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.RazorAssemblyInfo.cache
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.RazorAssemblyInfo.cs
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Debug\net8.0\BTITPORequest.sourcelink.json
