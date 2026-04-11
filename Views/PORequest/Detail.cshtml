@@ -8,6 +8,10 @@
         (Model.PONumber, null)
     };
     string userSam = User.FindFirst("samacc")?.Value ?? "";
+
+    // Helper: true ถ้ามีการลงนามแล้ว (ไม่ว่าจะเป็น crypto signature หรือ image)
+    bool HasSigned(string sigBase64, string sigImage)
+        => !string.IsNullOrEmpty(sigBase64) || !string.IsNullOrEmpty(sigImage);
 }
 
 <!-- Top Bar -->
@@ -43,11 +47,10 @@
 <div class="row g-3">
     <!-- Left: PO Document Preview -->
     <div class="col-lg-8">
-
-        <!-- PO Card -->
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-                <!-- Mini Header mimicking the paper form -->
+
+                <!-- Header -->
                 <div class="d-flex justify-content-between align-items-start mb-3 pb-3 border-bottom">
                     <div>
                         <div class="text-muted" style="font-size:.75rem;">TradeRegister No. 556201342</div>
@@ -58,6 +61,7 @@
                     </div>
                 </div>
 
+                <!-- PO Number + Date -->
                 <div class="d-flex justify-content-between mb-3">
                     <div>
                         <div class="fw-bold" style="font-size:1rem;">PURCHASE ORDER No.</div>
@@ -73,12 +77,17 @@
                     </div>
                 </div>
 
+                <!-- Vendor Info -->
                 <table class="table table-borderless mb-2" style="font-size:.85rem;">
                     <tr><td class="fw-semibold py-1" style="width:100px;">Attn:</td><td>@Model.VendorAttn</td></tr>
                     <tr><td class="fw-semibold py-1">Company:</td><td>@Model.VendorCompany</td></tr>
                     <tr><td class="fw-semibold py-1">Address:</td><td>@Model.VendorAddress</td></tr>
-                    <tr><td class="fw-semibold py-1">Tel No.:</td><td>@Model.VendorTel</td>
-                        <td class="fw-semibold py-1">Fax No.:</td><td>@Model.VendorFax</td></tr>
+                    <tr>
+                        <td class="fw-semibold py-1">Tel No.:</td>
+                        <td>@Model.VendorTel</td>
+                        <td class="fw-semibold py-1">Fax No.:</td>
+                        <td>@Model.VendorFax</td>
+                    </tr>
                     <tr><td class="fw-semibold py-1">E-mail:</td><td>@Model.VendorEmail</td></tr>
                     <tr><td class="fw-semibold py-1">Ref.:</td><td>@Model.RefNo</td></tr>
                     <tr>
@@ -132,6 +141,7 @@
                     ( @Model.GrandTotalText )
                 </div>
 
+                <!-- Notes -->
                 @if (!string.IsNullOrEmpty(Model.Notes))
                 {
                     <div class="border rounded p-2 bg-light mb-3" style="font-size:.8rem;">
@@ -143,47 +153,113 @@
                     </div>
                 }
 
-                <!-- Signature Row -->
+                <!-- ── Signature Row ──────────────────────────────── -->
                 <div class="row text-center g-2 mt-2">
+
+                    @* Supplier *@
                     <div class="col-3">
-                        <div class="border rounded p-2" style="min-height:80px;">
-                            <div class="small text-muted mb-1">For Supplier Sign & Feedback</div>
+                        <div class="border rounded p-2" style="min-height:90px;">
+                            <div class="small text-muted mb-1">For Supplier<br />Sign &amp; Feedback</div>
                             <div class="bt-sign-placeholder"></div>
                         </div>
                     </div>
+
+                    @* Requested *@
+                    @{
+                        bool reqSigned = HasSigned(Model.RequesterSignatureBase64, Model.RequesterSignatureImage);
+                    }
                     <div class="col-3">
-                        <div class="border rounded p-2 @(string.IsNullOrEmpty(Model.RequesterSignUrl) ? "" : "border-success")" style="min-height:80px;">
+                        <div class="border rounded p-2 @(reqSigned ? "border-success" : "")" style="min-height:90px;">
                             <div class="small text-muted mb-1">Requested:</div>
-                            @if (!string.IsNullOrEmpty(Model.RequesterSignUrl))
+                            @if (!string.IsNullOrEmpty(Model.RequesterSignatureImage))
                             {
-                                <div class="text-success small"><i class="bi bi-patch-check-fill"></i> Signed</div>
+                                <img src="data:image/png;base64,@Model.RequesterSignatureImage"
+                                     alt="Signature" style="max-height:40px;max-width:100%;" class="mb-1" />
                             }
-                            <div class="small fw-semibold mt-1">@Model.RequesterName</div>
+                            else if (reqSigned)
+                            {
+                                <div class="text-success small mb-1">
+                                    <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                </div>
+                            }
+                            <div class="small fw-semibold">@Model.RequesterName</div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.RequesterTitle</div>
+                            @if (Model.RequestedDate.HasValue)
+                            {
+                                <div class="text-muted" style="font-size:.65rem;">
+                                    @Model.RequestedDate.Value.ToString("dd/MM/yy HH:mm")
+                                </div>
+                            }
                         </div>
                     </div>
+
+                    @* Issued *@
+                    @{
+                        bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
+                    }
                     <div class="col-3">
-                        <div class="border rounded p-2 @(string.IsNullOrEmpty(Model.IssuerSignUrl) ? "" : "border-success")" style="min-height:80px;">
+                        <div class="border rounded p-2 @(issSigned ? "border-success" : "")" style="min-height:90px;">
                             <div class="small text-muted mb-1">Issued:</div>
-                            @if (!string.IsNullOrEmpty(Model.IssuerSignUrl))
+                            @if (!string.IsNullOrEmpty(Model.IssuerSignatureImage))
                             {
-                                <div class="text-success small"><i class="bi bi-patch-check-fill"></i> Signed</div>
+                                <img src="data:image/png;base64,@Model.IssuerSignatureImage"
+                                     alt="Signature" style="max-height:40px;max-width:100%;" class="mb-1" />
                             }
-                            <div class="small fw-semibold mt-1">@Model.IssuerName</div>
+                            else if (issSigned)
+                            {
+                                <div class="text-success small mb-1">
+                                    <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                </div>
+                            }
+                            <div class="small fw-semibold">@Model.IssuerName</div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.IssuerTitle</div>
-                        </div>
-                    </div>
-                    <div class="col-3">
-                        <div class="border rounded p-2 @(string.IsNullOrEmpty(Model.Approver2SignUrl) ? "" : "border-success")" style="min-height:80px;">
-                            <div class="small text-muted mb-1">Authorized:</div>
-                            @if (!string.IsNullOrEmpty(Model.Approver2SignUrl))
+                            @if (Model.IssuedDate.HasValue)
                             {
-                                <div class="text-success small"><i class="bi bi-patch-check-fill"></i> Signed</div>
+                                <div class="text-muted" style="font-size:.65rem;">
+                                    @Model.IssuedDate.Value.ToString("dd/MM/yy HH:mm")
+                                </div>
                             }
-                            <div class="small fw-semibold mt-1">@(Model.Approver2Name ?? Model.Approver1Name)</div>
-                            <div class="text-muted" style="font-size:.7rem;">@(Model.Approver2Title ?? Model.Approver1Title)</div>
                         </div>
                     </div>
+
+                    @* Authorized (Approver 2 final, fallback Approver 1) *@
+                    @{
+                        var authName = Model.Approver2Name ?? Model.Approver1Name ?? "";
+                        var authTitle = Model.Approver2Title ?? Model.Approver1Title ?? "";
+                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage)
+                        ? Model.Approver2SignatureImage
+                        : Model.Approver1SignatureImage ?? "";
+                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64)
+                        ? Model.Approver2SignatureBase64
+                        : Model.Approver1SignatureBase64 ?? "";
+                        var authDate = Model.Approver2Date ?? Model.Approver1Date;
+                        bool authSigned = HasSigned(authSig, authImg);
+                    }
+                    <div class="col-3">
+                        <div class="border rounded p-2 @(authSigned ? "border-success" : "")" style="min-height:90px;">
+                            <div class="small text-muted mb-1">Authorized:</div>
+                            @if (!string.IsNullOrEmpty(authImg))
+                            {
+                                <img src="data:image/png;base64,@authImg"
+                                     alt="Signature" style="max-height:40px;max-width:100%;" class="mb-1" />
+                            }
+                            else if (authSigned)
+                            {
+                                <div class="text-success small mb-1">
+                                    <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                </div>
+                            }
+                            <div class="small fw-semibold">@authName</div>
+                            <div class="text-muted" style="font-size:.7rem;">@authTitle</div>
+                            @if (authDate.HasValue)
+                            {
+                                <div class="text-muted" style="font-size:.65rem;">
+                                    @authDate.Value.ToString("dd/MM/yy HH:mm")
+                                </div>
+                            }
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -197,7 +273,9 @@
         {
             <div class="card border-0 shadow-sm border-start border-primary border-4 mb-3">
                 <div class="card-header bg-transparent border-0">
-                    <h6 class="fw-semibold mb-0 text-primary"><i class="bi bi-lightning-charge me-2"></i>Action Required</h6>
+                    <h6 class="fw-semibold mb-0 text-primary">
+                        <i class="bi bi-lightning-charge me-2"></i>Action Required
+                    </h6>
                 </div>
                 <div class="card-body d-grid gap-2">
                     @if (Model.CanSubmit)
@@ -206,7 +284,7 @@
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@Model.POId" />
                             <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-send me-2"></i>Submit & Sign as Requester
+                                <i class="bi bi-send me-2"></i>Submit &amp; Sign as Requester
                             </button>
                         </form>
                     }
@@ -216,7 +294,7 @@
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@Model.POId" />
                             <button type="submit" class="btn btn-info w-100">
-                                <i class="bi bi-pen me-2"></i>Issue & Sign
+                                <i class="bi bi-pen me-2"></i>Issue &amp; Sign
                             </button>
                         </form>
                     }
@@ -238,22 +316,23 @@
             </div>
         }
 
-        <!-- Workflow Steps -->
+        <!-- Workflow Stepper -->
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-transparent border-0 pb-0">
-                <h6 class="fw-semibold mb-0"><i class="bi bi-diagram-3 me-2 text-primary"></i>Approval Flow</h6>
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-diagram-3 me-2 text-primary"></i>Approval Flow
+                </h6>
             </div>
             <div class="card-body">
                 @{
                     var steps = new[]
                     {
-                        ("Draft", POStatus.Draft, "bi-pencil-square", "secondary"),
-                        ("Requested", POStatus.Requested, "bi-person-check", "primary"),
-                        ("Issued", POStatus.Issued, "bi-send-check", "info"),
-                        ("Authorized", POStatus.Authorized, "bi-shield-check", "warning"),
-                        ("Completed", POStatus.Completed, "bi-trophy", "success"),
-                    };
-                    int currentStep = (int)Model.Status;
+                                ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
+                                ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
+                                ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
+                                ("Authorized", POStatus.Authorized, "bi-shield-check",  "warning"),
+                                ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
+                                };
                 }
                 <div class="bt-workflow">
                     @foreach (var (label, status, icon, color) in steps)
@@ -274,7 +353,9 @@
         <!-- Approval History -->
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 pb-0">
-                <h6 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>History</h6>
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-clock-history me-2 text-primary"></i>History
+                </h6>
             </div>
             <div class="card-body p-0">
                 @if (!Model.ApprovalHistory.Any())
@@ -289,7 +370,9 @@
                             <li class="list-group-item px-3 py-2">
                                 <div class="d-flex justify-content-between">
                                     <span class="fw-semibold" style="font-size:.85rem;">@h.Action</span>
-                                    <span class="text-muted" style="font-size:.75rem;">@h.ActionDate.ToString("dd/MM HH:mm")</span>
+                                    <span class="text-muted" style="font-size:.75rem;">
+                                        @h.ActionDate.ToString("dd/MM HH:mm")
+                                    </span>
                                 </div>
                                 <div class="text-muted" style="font-size:.75rem;">@h.ActionByName</div>
                                 @if (!string.IsNullOrEmpty(h.Remark))
@@ -302,5 +385,6 @@
                 }
             </div>
         </div>
+
     </div>
 </div>
