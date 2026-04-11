@@ -2,14 +2,22 @@ namespace BTITPORequest.Models
 {
     public class UserSessionModel
     {
-        public string SamAcc { get; set; } = string.Empty;
+        // SSO fields — ได้มาจาก btauthen callback query string
+        public string SamAcc { get; set; } = string.Empty;        // เช่น "sakulchai.p"
         public string EmpCode { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;       // fname
         public string Email { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;    // depart
+        public string SsoId { get; set; } = string.Empty;         // id (GUID จาก SSO)
+
+        // HR DB fields
         public string DeptManagerSam { get; set; } = string.Empty;
         public string DeptManagerEmail { get; set; } = string.Empty;
-        public string Token { get; set; } = string.Empty;     // JWT from DigitalSign API
-        public string Role { get; set; } = "User";            // User | Approver | Admin
+
+        // Signature image (base64 PNG จาก bt_digitalsign)
+        public string SignatureImageBase64 { get; set; } = string.Empty;
+
+        public string Role { get; set; } = "User"; // User | Issuer | Approver | Admin
     }
 
     public class HRUserModel

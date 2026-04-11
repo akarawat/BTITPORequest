@@ -27,14 +27,19 @@ namespace BTITPORequest.Controllers
             _logger = logger;
         }
 
-        // ─── LIST ─────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────
+        private UserSessionModel CurrentUser =>
+            SessionHelper.GetUser(HttpContext.Session)
+            ?? SessionHelper.GetUserFromClaims(User)
+            ?? new UserSessionModel();
+
+        // ── LIST ──────────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> Index(
             string? status, string? search, DateTime? dateFrom, DateTime? dateTo)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
+            var user = CurrentUser;
             bool isAdmin = user.Role is "Admin";
-
             var list = await _poService.GetPOListAsync(user.SamAcc, isAdmin, dateFrom, dateTo, status);
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -43,176 +48,132 @@ namespace BTITPORequest.Controllers
                     p.VendorCompany.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     p.Subject.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            var vm = new POListViewModel
+            return View(new POListViewModel
             {
-                POList = list,
-                FilterStatus = status,
-                SearchText = search,
-                DateFrom = dateFrom,
-                DateTo = dateTo,
-                TotalCount = list.Count,
-                CurrentUserSam = user.SamAcc,
-                IsAdmin = isAdmin
-            };
-            return View(vm);
+                POList = list, FilterStatus = status, SearchText = search,
+                DateFrom = dateFrom, DateTo = dateTo,
+                TotalCount = list.Count, CurrentUserSam = user.SamAcc, IsAdmin = isAdmin
+            });
         }
 
-        // ─── CREATE ───────────────────────────────────────────────
+        // ── CREATE ────────────────────────────────────────────
         [HttpGet]
         public IActionResult Create()
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
-            var vm = new POCreateViewModel
-            {
-                PO = new PORequestModel { PODate = DateTime.Today },
-                CurrentUserSam = user.SamAcc,
-                CurrentUserName = user.FullName
-            };
-            return View(vm);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(
-            [FromForm] PORequestModel po,
-            [FromForm] string lineItemsJson,
-            [FromForm] bool submitNow = false)
-        {
-            var user = SessionHelper.GetUserFromClaims(User)!;
-            var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
-
-            if (lineItems.Count == 0)
-            {
-                ModelState.AddModelError("", "Please add at least one line item.");
-                return View(new POCreateViewModel { PO = po, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName });
-            }
-
-            RecalcTotals(po, lineItems);
-
-            var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc);
-
-            if (submitNow)
-            {
-                // Call digital sign API to get requester signature
-                var (signOk, signUrl, signErr) = await _signService.RequestSignatureAsync(user.Token, poId, "ITPO");
-                var url = signOk ? (signUrl ?? "") : "";
-                await _poService.SubmitPOAsync(poId, user.SamAcc, url);
-                TempData["Success"] = "PO submitted successfully. Awaiting issuance.";
-            }
-            else
-            {
-                TempData["Success"] = "PO saved as draft.";
-            }
-
-            return RedirectToAction("Detail", new { id = poId });
-        }
-
-        // ─── EDIT ─────────────────────────────────────────────────
-        [HttpGet]
-        public async Task<IActionResult> Edit(int id)
-        {
-            var user = SessionHelper.GetUserFromClaims(User)!;
-            var po = await _poService.GetPOByIdAsync(id);
-            if (po == null) return NotFound();
-            if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
-            if (po.Status != POStatus.Draft) return BadRequest("Only draft POs can be edited.");
-
+            var user = CurrentUser;
             return View(new POCreateViewModel
             {
-                PO = po,
-                LineItems = po.LineItems,
+                PO = new PORequestModel { PODate = DateTime.Today },
                 CurrentUserSam = user.SamAcc,
                 CurrentUserName = user.FullName
             });
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(
+            [FromForm] PORequestModel po,
+            [FromForm] string lineItemsJson,
+            [FromForm] bool submitNow = false)
+        {
+            var user = CurrentUser;
+            var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
+            if (lineItems.Count == 0)
+            {
+                ModelState.AddModelError("", "Please add at least one line item.");
+                return View(new POCreateViewModel { PO = po, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName });
+            }
+            RecalcTotals(po, lineItems);
+            var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc);
+
+            if (submitNow)
+                await DoSubmitAsync(poId, po.PONumber, user);
+
+            TempData["Success"] = submitNow ? "PO submitted & signed successfully." : "PO saved as draft.";
+            return RedirectToAction("Detail", new { id = poId });
+        }
+
+        // ── EDIT ──────────────────────────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var user = CurrentUser;
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
+            if (po.Status != POStatus.Draft) return BadRequest("Only drafts can be edited.");
+            return View(new POCreateViewModel { PO = po, LineItems = po.LineItems, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName });
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             [FromForm] PORequestModel po,
             [FromForm] string lineItemsJson,
             [FromForm] bool submitNow = false)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
+            var user = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
-
             RecalcTotals(po, lineItems);
             await _poService.UpdatePOAsync(po, lineItems);
 
             if (submitNow)
-            {
-                var (signOk, signUrl, _) = await _signService.RequestSignatureAsync(user.Token, po.POId, "ITPO");
-                await _poService.SubmitPOAsync(po.POId, user.SamAcc, signOk ? (signUrl ?? "") : "");
-                TempData["Success"] = "PO submitted for approval.";
-            }
-            else
-            {
-                TempData["Success"] = "PO updated.";
-            }
+                await DoSubmitAsync(po.POId, po.PONumber, user);
 
+            TempData["Success"] = submitNow ? "PO submitted & signed." : "PO updated.";
             return RedirectToAction("Detail", new { id = po.POId });
         }
 
-        // ─── DETAIL ───────────────────────────────────────────────
+        // ── DETAIL ────────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> Detail(int id)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
+            var user = CurrentUser;
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
-            // Set permission flags
             po.CanEdit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
             po.CanSubmit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
-
-            // Issuance: any user with Issuer role or Admin
-            po.CanIssue = po.Status == POStatus.Requested
-                && (user.Role is "Issuer" or "Admin");
-
-            // First approval
-            po.CanApprove1 = po.Status == POStatus.Issued
-                && (user.Role is "Approver" or "Admin");
-
-            // Second approval
-            po.CanApprove2 = po.Status == POStatus.Authorized
-                && (user.Role is "Approver" or "Admin");
-
-            // Download PDF when completed
-            po.CanDownloadPDF = po.Status == POStatus.Completed
-                && (po.RequesterSam == user.SamAcc || user.Role == "Admin");
+            po.CanIssue = po.Status == POStatus.Requested && user.Role is "Issuer" or "Admin";
+            po.CanApprove1 = po.Status == POStatus.Issued && user.Role is "Approver" or "Admin";
+            po.CanApprove2 = po.Status == POStatus.Authorized && user.Role is "Approver" or "Admin";
+            po.CanDownloadPDF = po.Status == POStatus.Completed &&
+                (po.RequesterSam == user.SamAcc || user.Role == "Admin");
 
             return View(po);
         }
 
-        // ─── SUBMIT (Requested) ───────────────────────────────────
+        // ── SUBMIT ────────────────────────────────────────────
         [HttpPost]
         public async Task<IActionResult> Submit(int id)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
-            var (signOk, signUrl, err) = await _signService.RequestSignatureAsync(user.Token, id, "ITPO");
-            if (!signOk) _logger.LogWarning("Digital sign failed for PO {id}: {err}", id, err);
-
-            await _poService.SubmitPOAsync(id, user.SamAcc, signOk ? (signUrl ?? "") : "");
-            TempData["Success"] = "PO submitted. Waiting for issuance.";
+            var user = CurrentUser;
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            await DoSubmitAsync(id, po.PONumber, user);
+            TempData["Success"] = "PO submitted & digitally signed.";
             return RedirectToAction("Detail", new { id });
         }
 
-        // ─── ISSUE ────────────────────────────────────────────────
+        // ── ISSUE ─────────────────────────────────────────────
         [HttpPost]
         public async Task<IActionResult> Issue(int id)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
-            var (signOk, signUrl, err) = await _signService.ApproveSignatureAsync(user.Token, id, "ITPO");
+            var user = CurrentUser;
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
 
-            await _poService.IssuePOAsync(id, user.SamAcc, user.FullName,
-                User.FindFirst("title")?.Value ?? "Network Administrator",
-                signOk ? (signUrl ?? "") : "");
+            var signResult = await _signService.SignDataAsync(
+                po.PONumber, "Issued", user.SamAcc, user.FullName, user.Department);
 
-            TempData["Success"] = "PO issued successfully.";
+            await _poService.IssuePOAsync(id,
+                user.SamAcc, user.FullName, user.Department,
+                signResult?.SignatureBase64 ?? "",
+                user.SignatureImageBase64);
+
+            TempData["Success"] = "PO issued & digitally signed.";
             return RedirectToAction("Detail", new { id });
         }
 
-        // ─── APPROVE ──────────────────────────────────────────────
+        // ── APPROVE ───────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> Approve(int id, int level)
         {
@@ -221,100 +182,90 @@ namespace BTITPORequest.Controllers
             return View(new POApproveViewModel { PO = po, ApprovalLevel = level });
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
+        [HttpPost][ValidateAntiForgeryToken]
         public async Task<IActionResult> Approve(int id, int level, string action, string? remark)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
+            var user = CurrentUser;
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
 
             if (action == "approve")
             {
-                var (signOk, signUrl, _) = await _signService.ApproveSignatureAsync(user.Token, id, "ITPO");
-                await _poService.ApprovePOAsync(id, level, user.SamAcc, user.FullName,
-                    User.FindFirst("title")?.Value ?? "Section Head",
-                    signOk ? (signUrl ?? "") : "", remark);
-                TempData["Success"] = level == 2 ? "PO fully approved! Document is complete." : "PO approved. Moving to next level.";
+                var purpose = level == 2 ? "Completed" : "Authorized";
+                var signResult = await _signService.SignDataAsync(
+                    po.PONumber, purpose, user.SamAcc, user.FullName, user.Department, remark);
+
+                await _poService.ApprovePOAsync(id, level,
+                    user.SamAcc, user.FullName, user.Department,
+                    signResult?.SignatureBase64 ?? "",
+                    user.SignatureImageBase64, remark);
+
+                TempData["Success"] = level == 2 ? "PO fully approved! Document complete." : "PO approved — moving to final step.";
             }
             else
             {
                 await _poService.RejectPOAsync(id, level, user.SamAcc, user.FullName, remark ?? "");
                 TempData["Warning"] = "PO rejected and returned for revision.";
             }
-
             return RedirectToAction("Detail", new { id });
         }
 
-        // ─── DOWNLOAD PDF ─────────────────────────────────────────
+        // ── DOWNLOAD PDF ──────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> DownloadPdf(int id)
         {
-            var user = SessionHelper.GetUserFromClaims(User)!;
+            var user = CurrentUser;
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
+            if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
+            if (po.Status != POStatus.Completed) return BadRequest("PDF is only available for completed POs.");
 
-            // Only requester or admin can download
-            if (po.RequesterSam != user.SamAcc && user.Role != "Admin")
-                return Forbid();
-
-            if (po.Status != POStatus.Completed)
-                return BadRequest("PDF is only available for completed POs.");
-
-            var pdfBytes = await _pdfService.GeneratePOPdfAsync(po);
-            var fileName = $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}.pdf";
-            return File(pdfBytes, "application/pdf", fileName);
+            var pdfBytes = await _pdfService.GeneratePOPdfAsync(po, user.SamAcc, user.FullName);
+            return File(pdfBytes, "application/pdf", $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}.pdf");
         }
 
-        // ─── SIGN CALLBACK (from DigitalSign API) ─────────────────
-        [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> SignCallback([FromBody] SignCallbackPayload payload)
+        // ── PRIVATE: Do Submit ────────────────────────────────
+        private async Task DoSubmitAsync(int poId, string poNumber, UserSessionModel user)
         {
-            _logger.LogInformation("Sign callback received: PO={poId} Status={status}", payload.DocumentId, payload.Status);
-            // Handle callback from digital sign API if needed
-            await Task.CompletedTask;
-            return Ok(new { success = true });
+            var signResult = await _signService.SignDataAsync(
+                poNumber, "Requested", user.SamAcc, user.FullName, user.Department);
+
+            await _poService.SubmitPOAsync(poId, user.SamAcc,
+                signResult?.SignatureBase64 ?? "",
+                user.SignatureImageBase64);
         }
 
-        // ─── HELPERS ──────────────────────────────────────────────
+        // ── PRIVATE: Recalc Totals ────────────────────────────
         private static void RecalcTotals(PORequestModel po, List<POLineItemModel> items)
         {
             po.Total = items.Sum(x => Math.Round(x.Quantity * x.UnitPrice, 2));
             po.VatAmount = Math.Round(po.Total * po.VatPercent / 100, 2);
             po.GrandTotal = po.Total + po.VatAmount;
-            po.GrandTotalText = NumberToThaiWords(po.GrandTotal);
+            po.GrandTotalText = NumberToWords(po.GrandTotal);
         }
 
-        private static string NumberToThaiWords(decimal amount)
+        private static string NumberToWords(decimal amount)
         {
-            // Simplified English amount-in-words
             var baht = (long)Math.Floor(amount);
             var satang = (int)Math.Round((amount - baht) * 100);
-            var words = ConvertToWords(baht) + " Baht";
-            if (satang > 0) words += $" and {ConvertToWords(satang)} Satang";
+            var words = ToWords(baht) + " Baht";
+            if (satang > 0) words += $" and {ToWords(satang)} Satang";
             return words + " Only";
         }
 
-        private static string ConvertToWords(long number)
+        private static string ToWords(long n)
         {
-            if (number == 0) return "Zero";
+            if (n == 0) return "Zero";
             string[] ones = { "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
-                              "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
-                              "Seventeen", "Eighteen", "Nineteen" };
+                "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+                "Seventeen", "Eighteen", "Nineteen" };
             string[] tens = { "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety" };
-
-            if (number < 20) return ones[number];
-            if (number < 100) return tens[number / 10] + (number % 10 > 0 ? " " + ones[number % 10] : "");
-            if (number < 1000) return ones[number / 100] + " Hundred" + (number % 100 > 0 ? " " + ConvertToWords(number % 100) : "");
-            if (number < 1_000_000) return ConvertToWords(number / 1000) + " Thousand" + (number % 1000 > 0 ? " " + ConvertToWords(number % 1000) : "");
-            if (number < 1_000_000_000) return ConvertToWords(number / 1_000_000) + " Million" + (number % 1_000_000 > 0 ? " " + ConvertToWords(number % 1_000_000) : "");
-            return ConvertToWords(number / 1_000_000_000) + " Billion" + (number % 1_000_000_000 > 0 ? " " + ConvertToWords(number % 1_000_000_000) : "");
+            if (n < 20) return ones[n];
+            if (n < 100) return tens[n / 10] + (n % 10 > 0 ? " " + ones[n % 10] : "");
+            if (n < 1000) return ones[n / 100] + " Hundred" + (n % 100 > 0 ? " " + ToWords(n % 100) : "");
+            if (n < 1_000_000) return ToWords(n / 1000) + " Thousand" + (n % 1000 > 0 ? " " + ToWords(n % 1000) : "");
+            if (n < 1_000_000_000) return ToWords(n / 1_000_000) + " Million" + (n % 1_000_000 > 0 ? " " + ToWords(n % 1_000_000) : "");
+            return ToWords(n / 1_000_000_000) + " Billion" + (n % 1_000_000_000 > 0 ? " " + ToWords(n % 1_000_000_000) : "");
         }
-    }
-
-    public class SignCallbackPayload
-    {
-        public string DocumentId { get; set; } = "";
-        public string Status { get; set; } = "";
-        public string? SignatureUrl { get; set; }
     }
 }
