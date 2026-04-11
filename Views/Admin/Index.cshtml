@@ -1,0 +1,211 @@
+@model BTITPORequest.Models.AdminIndexViewModel
+@{
+    ViewData["Title"] = "Admin — Role Management";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)>
+    {
+        ("Dashboard", "/Dashboard"),
+        ("Admin", null)
+    };
+}
+
+<!-- Header -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-shield-lock me-2 text-primary"></i>Role Management</h4>
+        <p class="text-muted mb-0" style="font-size:.85rem;">
+            กำหนดสิทธิ์พนักงานสำหรับ Workflow การอนุมัติ PO
+        </p>
+    </div>
+    <a asp-action="Roles" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-list-check me-1"></i>View All Assignments
+    </a>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-secondary-subtle text-secondary"><i class="bi bi-people"></i></div>
+            <div class="bt-stat-value">@Model.TotalEmployees</div>
+            <div class="bt-stat-label">พนักงานทั้งหมด</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-info-subtle text-info"><i class="bi bi-pen"></i></div>
+            <div class="bt-stat-value">@Model.IssuerCount</div>
+            <div class="bt-stat-label">Issuer</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-success-subtle text-success"><i class="bi bi-shield-check"></i></div>
+            <div class="bt-stat-value">@Model.ApproverCount</div>
+            <div class="bt-stat-label">Approver</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-danger-subtle text-danger"><i class="bi bi-person-gear"></i></div>
+            <div class="bt-stat-value">@Model.AdminCount</div>
+            <div class="bt-stat-label">Admin</div>
+        </div>
+    </div>
+</div>
+
+<!-- Role Info Box -->
+<div class="alert alert-light border mb-4">
+    <div class="row g-3 text-center">
+        <div class="col-md-4">
+            <span class="badge bg-secondary me-1">User</span>
+            <small class="text-muted">สร้าง PO และ Submit ได้</small>
+        </div>
+        <div class="col-md-4">
+            <span class="badge bg-info me-1">Issuer</span>
+            <small class="text-muted">ลงนาม Issue PO (Requested → Issued)</small>
+        </div>
+        <div class="col-md-4">
+            <span class="badge bg-success me-1">Approver</span>
+            <small class="text-muted">อนุมัติ Level 1 &amp; Level 2 (Issued → Completed)</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filter + Search -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control"
+                           placeholder="ค้นหาชื่อ / SAM / แผนก"
+                           value="@Model.SearchText" />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select name="dept" class="form-select form-select-sm">
+                    <option value="">ทุกแผนก</option>
+                    @foreach (var d in Model.Departments)
+                    {
+                        <option value="@d" selected="@(Model.FilterDept == d)">@d</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Employee Table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+        <h6 class="fw-semibold mb-0">
+            <i class="bi bi-people me-2 text-primary"></i>
+            พนักงาน (@Model.Employees.Count คน)
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>SAM Account</th>
+                        <th>แผนก</th>
+                        <th>ตำแหน่ง</th>
+                        <th>Manager</th>
+                        <th class="text-center" style="min-width:220px;">Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Employees.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-2 d-block mb-2 opacity-25"></i>
+                                ไม่พบข้อมูลพนักงาน
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var emp in Model.Employees)
+                    {
+                        var roleBadge = emp.AssignedRole switch
+                        {
+                            "Issuer"   => "info",
+                            "Approver" => "success",
+                            "Admin"    => "danger",
+                            _          => "secondary"
+                        };
+                        var roleLabel = emp.AssignedRole ?? "User";
+                        <tr data-sam="@emp.SAMACC.ToLower()"
+                            data-name="@emp.DISPNAME"
+                            data-email="@emp.UEMAIL"
+                            data-dept="@emp.DEPART">
+                            <td>
+                                <div class="fw-semibold">@emp.DISPNAME</div>
+                                <div class="text-muted" style="font-size:.75rem;">@emp.DISPNAME_TH</div>
+                                <div class="text-muted" style="font-size:.7rem;">@emp.UEMAIL</div>
+                            </td>
+                            <td><code>@emp.SAMACC</code></td>
+                            <td>@emp.DEPART</td>
+                            <td>
+                                <div>@emp.DESCRIP</div>
+                                <div class="text-muted" style="font-size:.72rem;">@emp.emp_code</div>
+                            </td>
+                            <td>
+                                <div style="font-size:.8rem;">@emp.reporter</div>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                    <span class="badge bg-@roleBadge role-badge" style="min-width:72px;">
+                                        @roleLabel
+                                    </span>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-info btn-role @(emp.AssignedRole == "Issuer" ? "active" : "")"
+                                                data-role="Issuer" title="Set as Issuer">
+                                            <i class="bi bi-pen"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success btn-role @(emp.AssignedRole == "Approver" ? "active" : "")"
+                                                data-role="Approver" title="Set as Approver">
+                                            <i class="bi bi-shield-check"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-role @(emp.AssignedRole == "Admin" ? "active" : "")"
+                                                data-role="Admin" title="Set as Admin">
+                                            <i class="bi bi-person-gear"></i>
+                                        </button>
+                                        @if (!string.IsNullOrEmpty(emp.AssignedRole))
+                                        {
+                                            <button class="btn btn-outline-secondary btn-remove-role"
+                                                    title="Remove role">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Toast feedback -->
+<div id="roleToast" class="toast align-items-center border-0 position-fixed bottom-0 end-0 m-3"
+     role="alert" style="z-index:9999;">
+    <div class="d-flex">
+        <div class="toast-body" id="roleToastBody"></div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin-roles.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,249 @@
+/* ============================================================
+   BERNINA IT PO Request — site.css
+   ============================================================ */
+
+:root {
+    --bt-primary:     #1a5676;
+    --bt-primary-dk:  #0d3349;
+    --bt-accent:      #2196c4;
+    --bt-sidebar-w:   240px;
+    --bt-topbar-h:    56px;
+    --bt-radius:      10px;
+    --bt-shadow:      0 2px 12px rgba(0,0,0,.08);
+}
+
+/* ── Reset & Base ─────────────────────────────────────────── */
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: .9rem; }
+
+/* ── Layout ───────────────────────────────────────────────── */
+.bt-body {
+    display: flex;
+    min-height: 100vh;
+    background: #f4f7fa;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.bt-sidebar {
+    width: var(--bt-sidebar-w);
+    background: linear-gradient(180deg, var(--bt-primary) 0%, var(--bt-primary-dk) 100%);
+    min-height: 100vh;
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 1040;
+    transition: transform .25s ease;
+    overflow-y: auto;
+}
+
+.bt-sidebar-brand {
+    border-bottom: 1px solid rgba(255,255,255,.1);
+}
+
+.brand-logo {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,.15);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+}
+
+.nav-section-label {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.4);
+    padding: .75rem 1rem .25rem;
+    margin-top: .25rem;
+}
+
+.bt-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .5rem .85rem;
+    border-radius: 8px;
+    color: rgba(255,255,255,.75);
+    text-decoration: none;
+    font-size: .85rem;
+    transition: background .15s, color .15s;
+    margin-bottom: 2px;
+}
+.bt-nav-link:hover  { background: rgba(255,255,255,.1); color: #fff; }
+.bt-nav-link.active { background: rgba(255,255,255,.18); color: #fff; font-weight: 600; }
+.bt-nav-link i      { font-size: 1rem; opacity: .85; }
+
+.bt-sidebar-footer {
+    border-top: 1px solid rgba(255,255,255,.1);
+    margin-top: auto;
+}
+
+.bt-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.25);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .85rem;
+    flex-shrink: 0;
+}
+
+/* ── Main area ────────────────────────────────────────────── */
+.bt-main {
+    margin-left: var(--bt-sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.bt-topbar {
+    height: var(--bt-topbar-h);
+    background: #fff;
+    border-bottom: 1px solid #e9ecef;
+    position: sticky; top: 0; z-index: 100;
+}
+
+.bt-content {
+    padding: 1.5rem;
+    flex: 1;
+}
+
+/* ── Mobile overlay ───────────────────────────────────────── */
+.bt-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 1039;
+    background: rgba(0,0,0,.45);
+}
+.sidebar-open .bt-overlay { display: block; }
+.sidebar-open .bt-sidebar { transform: translateX(0) !important; }
+
+@media (max-width: 991px) {
+    .bt-sidebar { transform: translateX(-100%); }
+    .bt-main    { margin-left: 0; }
+}
+
+/* ── Stat Cards ───────────────────────────────────────────── */
+.bt-stat-card {
+    background: #fff;
+    border-radius: var(--bt-radius);
+    padding: 1rem;
+    box-shadow: var(--bt-shadow);
+    display: flex; flex-direction: column; align-items: center; gap: .4rem;
+    text-align: center;
+}
+.bt-stat-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+.bt-stat-value  { font-size: 1.4rem; font-weight: 700; line-height: 1; }
+.bt-stat-label  { font-size: .72rem; color: #6c757d; }
+
+/* ── Tables ───────────────────────────────────────────────── */
+.bt-table-header th {
+    background: var(--bt-primary) !important;
+    color: #fff !important;
+    font-weight: 600;
+    font-size: .82rem;
+}
+
+/* ── Cards ────────────────────────────────────────────────── */
+.card {
+    border-radius: var(--bt-radius) !important;
+}
+.card-header {
+    border-radius: var(--bt-radius) var(--bt-radius) 0 0 !important;
+}
+
+/* ── Workflow Steps ───────────────────────────────────────── */
+.bt-workflow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+}
+.bt-workflow::before {
+    content: '';
+    position: absolute;
+    left: 19px; top: 20px; bottom: 20px;
+    width: 2px;
+    background: #e9ecef;
+    z-index: 0;
+}
+.bt-workflow-step {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .5rem 0;
+    position: relative;
+    z-index: 1;
+}
+.bt-workflow-icon {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: #f0f2f5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    border: 2px solid #dee2e6;
+    transition: all .2s;
+}
+.bt-workflow-step.done .bt-workflow-icon {
+    background: #e8f5e9;
+    border-color: #66bb6a;
+}
+.bt-workflow-step.current .bt-workflow-icon {
+    background: #e3f2fd;
+    border-color: var(--bt-accent);
+    box-shadow: 0 0 0 4px rgba(33,150,196,.15);
+}
+.bt-workflow-label {
+    font-size: .85rem;
+    font-weight: 500;
+}
+.bt-workflow-step.done .bt-workflow-label    { color: #388e3c; }
+.bt-workflow-step.current .bt-workflow-label { color: var(--bt-primary); font-weight: 700; }
+
+/* ── Form helpers ─────────────────────────────────────────── */
+.form-label { font-size: .85rem; margin-bottom: .3rem; }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-primary {
+    background: var(--bt-primary);
+    border-color: var(--bt-primary);
+}
+.btn-primary:hover {
+    background: var(--bt-primary-dk);
+    border-color: var(--bt-primary-dk);
+}
+
+/* ── Line item table row ──────────────────────────────────── */
+.line-row input {
+    font-size: .83rem;
+    padding: .25rem .5rem;
+}
+.line-row td { vertical-align: middle; }
+
+/* ── Signature placeholder ────────────────────────────────── */
+.bt-sign-placeholder {
+    height: 40px;
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    margin: 4px 0;
+}
+
+/* ── Scrollbars ───────────────────────────────────────────── */
+.bt-sidebar::-webkit-scrollbar { width: 4px; }
+.bt-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 4px; }
+
+/* ── Toast ────────────────────────────────────────────────── */
+.toast { min-width: 260px; }
+
+/* ── Breadcrumb ───────────────────────────────────────────── */
+.breadcrumb-item, .breadcrumb-item a {
+    font-size: .82rem;
+    color: #6c757d;
+    text-decoration: none;
+}
+.breadcrumb-item.active { color: #343a40; }

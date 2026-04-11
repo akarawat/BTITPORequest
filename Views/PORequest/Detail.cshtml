@@ -83,10 +83,8 @@
                     <tr><td class="fw-semibold py-1">Company:</td><td>@Model.VendorCompany</td></tr>
                     <tr><td class="fw-semibold py-1">Address:</td><td>@Model.VendorAddress</td></tr>
                     <tr>
-                        <td class="fw-semibold py-1">Tel No.:</td>
-                        <td>@Model.VendorTel</td>
-                        <td class="fw-semibold py-1">Fax No.:</td>
-                        <td>@Model.VendorFax</td>
+                        <td class="fw-semibold py-1">Tel No.:</td><td>@Model.VendorTel</td>
+                        <td class="fw-semibold py-1">Fax No.:</td><td>@Model.VendorFax</td>
                     </tr>
                     <tr><td class="fw-semibold py-1">E-mail:</td><td>@Model.VendorEmail</td></tr>
                     <tr><td class="fw-semibold py-1">Ref.:</td><td>@Model.RefNo</td></tr>
@@ -159,7 +157,7 @@
                     @* Supplier *@
                     <div class="col-3">
                         <div class="border rounded p-2" style="min-height:90px;">
-                            <div class="small text-muted mb-1">For Supplier<br />Sign &amp; Feedback</div>
+                            <div class="small text-muted mb-1">For Supplier<br/>Sign &amp; Feedback</div>
                             <div class="bt-sign-placeholder"></div>
                         </div>
                     </div>
@@ -224,15 +222,15 @@
 
                     @* Authorized (Approver 2 final, fallback Approver 1) *@
                     @{
-                        var authName = Model.Approver2Name ?? Model.Approver1Name ?? "";
+                        var authName  = Model.Approver2Name  ?? Model.Approver1Name  ?? "";
                         var authTitle = Model.Approver2Title ?? Model.Approver1Title ?? "";
-                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage)
-                        ? Model.Approver2SignatureImage
-                        : Model.Approver1SignatureImage ?? "";
-                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64)
-                        ? Model.Approver2SignatureBase64
-                        : Model.Approver1SignatureBase64 ?? "";
-                        var authDate = Model.Approver2Date ?? Model.Approver1Date;
+                        var authImg   = !string.IsNullOrEmpty(Model.Approver2SignatureImage)
+                                        ? Model.Approver2SignatureImage
+                                        : Model.Approver1SignatureImage ?? "";
+                        var authSig   = !string.IsNullOrEmpty(Model.Approver2SignatureBase64)
+                                        ? Model.Approver2SignatureBase64
+                                        : Model.Approver1SignatureBase64 ?? "";
+                        var authDate  = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
                     }
                     <div class="col-3">
@@ -327,12 +325,12 @@
                 @{
                     var steps = new[]
                     {
-                                ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
-                                ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
-                                ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
-                                ("Authorized", POStatus.Authorized, "bi-shield-check",  "warning"),
-                                ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
-                                };
+                        ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
+                        ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
+                        ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
+                        ("Authorized", POStatus.Authorized, "bi-shield-check",  "warning"),
+                        ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
+                    };
                 }
                 <div class="bt-workflow">
                     @foreach (var (label, status, icon, color) in steps)

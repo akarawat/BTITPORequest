@@ -18,46 +18,108 @@ namespace BTITPORequest.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// รับ SSO callback params → สร้าง UserSession
-        /// พร้อมดึง signature image จาก bt_digitalsign
-        /// </summary>
         public async Task<UserSessionModel?> BuildSessionFromSsoAsync(
             string ssoId, string adUser, string email, string fname, string depart)
         {
-            // DOMAIN\SAKULCHAI.P → sakulchai.p
             var samAcc = adUser.Contains('\\')
                 ? adUser.Split('\\').Last().ToLower()
                 : adUser.ToLower();
 
-            _logger.LogInformation("SSO Build Session: sam={sam} dept={dept}", samAcc, depart);
+            _logger.LogInformation("SSO: building session for sam={sam}", samAcc);
 
-            // ดึง HR data และ signature image พร้อมกัน
-            var hrTask = GetHRUserAsync(samAcc);
-            var sigTask = _signService.GetSignatureImageAsync(samAcc);
-            await Task.WhenAll(hrTask, sigTask);
+            // ดึงข้อมูลพร้อมกัน timeout 5 วินาที
+            HRUserModel? hrUser = null;
+            string? sigBase64 = null;
+            string role = "User";
 
-            var hrUser = hrTask.Result;
-            var signatureBase64 = sigTask.Result ?? string.Empty;
-
-            if (!string.IsNullOrEmpty(signatureBase64))
-                _logger.LogInformation("Signature image loaded for {sam}", samAcc);
-            else
-                _logger.LogInformation("No signature image registered for {sam} — user should register at bt_signature", samAcc);
-
-            return new UserSessionModel
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
             {
-                SsoId = ssoId,
-                SamAcc = samAcc,
-                FullName = fname,
-                Email = string.IsNullOrEmpty(email) ? hrUser?.user_email ?? "" : email,
-                Department = depart,
-                DeptManagerSam = hrUser?.samacc_depmgr ?? string.Empty,
-                DeptManagerEmail = hrUser?.depmgr_email ?? string.Empty,
-                EmpCode = hrUser?.emp_code ?? string.Empty,
-                SignatureImageBase64 = signatureBase64,
-                Role = DetermineRole(samAcc, hrUser)
+                var hrTask   = GetHRUserSafeAsync(samAcc, cts.Token);
+                var sigTask  = GetSignatureSafeAsync(samAcc, cts.Token);
+                var roleTask = GetUserRoleSafeAsync(samAcc, cts.Token);
+                await Task.WhenAll(hrTask, sigTask, roleTask);
+                hrUser   = hrTask.Result;
+                sigBase64 = sigTask.Result;
+                role     = roleTask.Result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Fetch timeout for {sam}", samAcc);
+            }
+
+            var session = new UserSessionModel
+            {
+                SsoId               = ssoId,
+                SamAcc              = samAcc,
+                FullName            = fname,
+                Email               = string.IsNullOrEmpty(email) ? hrUser?.user_email ?? "" : email,
+                Department          = depart,
+                DeptManagerSam      = hrUser?.samacc_depmgr ?? string.Empty,
+                DeptManagerEmail    = hrUser?.depmgr_email  ?? string.Empty,
+                EmpCode             = hrUser?.emp_code       ?? string.Empty,
+                SignatureImageBase64 = sigBase64              ?? string.Empty,
+                Role                = role
             };
+
+            _logger.LogInformation("Session built: {sam} role={role}", samAcc, role);
+            return session;
+        }
+
+        // ── Get role from ITPO_UserRoles ─────────────────────
+        private async Task<string> GetUserRoleSafeAsync(string samAcc, CancellationToken ct)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                var cmd = new CommandDefinition(
+                    "ITPO_sp_GetUserRole",
+                    new { SamAcc = samAcc },
+                    commandType: System.Data.CommandType.StoredProcedure,
+                    cancellationToken: ct);
+                var role = await conn.ExecuteScalarAsync<string>(cmd);
+                return role ?? "User";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetUserRole failed for {sam}", samAcc);
+                return "User";
+            }
+        }
+
+        private async Task<HRUserModel?> GetHRUserSafeAsync(string samAcc, CancellationToken ct)
+        {
+            try
+            {
+                using var conn = _db.GetBT_HRConnection();
+                var cmd = new CommandDefinition(
+                    "sp_ITPOgetAllSamUser",
+                    commandType: System.Data.CommandType.StoredProcedure,
+                    cancellationToken: ct);
+                var all = await conn.QueryAsync<HRUserModel>(cmd);
+                return all.FirstOrDefault(u =>
+                    u.samacc.Equals(samAcc, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetHRUser failed for {sam}", samAcc);
+                return null;
+            }
+        }
+
+        private async Task<string?> GetSignatureSafeAsync(string samAcc, CancellationToken ct)
+        {
+            try
+            {
+                var task = _signService.GetSignatureImageAsync(samAcc);
+                var completed = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, ct));
+                return completed == task ? await task : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetSignature failed for {sam}", samAcc);
+                return null;
+            }
         }
 
         public async Task<HRUserModel?> GetHRUserAsync(string samAcc)
@@ -94,8 +156,5 @@ namespace BTITPORequest.Services
                 return new List<HRUserModel>();
             }
         }
-
-        // TODO: ปรับตาม org chart จริง (AD Group / ITPO_UserRoles table)
-        private static string DetermineRole(string samAcc, HRUserModel? hr) => "User";
     }
 }

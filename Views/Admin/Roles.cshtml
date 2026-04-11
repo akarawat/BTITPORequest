@@ -1,0 +1,57 @@
+@model List<BTITPORequest.Models.UserRoleModel>
+@{
+    ViewData["Title"] = "Current Role Assignments";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)>
+    {
+        ("Dashboard", "/Dashboard"),
+        ("Admin", "/Admin"),
+        ("Roles", null)
+    };
+}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-list-check me-2 text-primary"></i>Role Assignments</h4>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size:.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>SAM Account</th>
+                        <th>Department</th>
+                        <th>Role</th>
+                        <th>Assigned</th>
+                        <th>By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-4">No roles assigned yet.</td></tr>
+                    }
+                    @foreach (var r in Model.OrderBy(x => x.RoleName))
+                    {
+                        var color = r.RoleName switch
+                        {
+                            "Issuer" => "info", "Approver" => "success",
+                            "Admin" => "danger", _ => "secondary"
+                        };
+                        <tr>
+                            <td class="fw-semibold">@r.FullName</td>
+                            <td><code>@r.SamAcc</code></td>
+                            <td>@r.Department</td>
+                            <td><span class="badge bg-@color">@r.RoleName</span></td>
+                            <td>@r.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-muted">@r.CreatedBy</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

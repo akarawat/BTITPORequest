@@ -8,11 +8,6 @@ using System.Security.Claims;
 
 namespace BTITPORequest.Controllers
 {
-    /// <summary>
-    /// Handles the root URL "/" which is the SSO callback endpoint.
-    /// btauthen redirects back here with query params:
-    /// ?id=GUID&user=DOMAIN\SAM&email=...&fname=...&depart=...
-    /// </summary>
     public class HomeController : Controller
     {
         private readonly IAuthService _authService;
@@ -26,71 +21,87 @@ namespace BTITPORequest.Controllers
             _logger = logger;
         }
 
-        [HttpGet("/")]
+        // ── Root "/" — SSO Callback entry point ──────────────
+        [HttpGet("")]
         [AllowAnonymous]
         public async Task<IActionResult> Index(
             string? id, string? user, string? email, string? fname, string? depart)
         {
-            // ── Case 1: SSO callback with query params ────────
+            // Case 1: SSO callback — มี id + user query params
             if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(user))
             {
+                _logger.LogInformation("SSO Callback received. id={id} user={user}", id, user);
                 return await ProcessSsoCallbackAsync(id, user, email ?? "", fname ?? "", depart ?? "");
             }
 
-            // ── Case 2: Already authenticated → go to Dashboard
+            // Case 2: Already logged in → Dashboard
             if (User.Identity?.IsAuthenticated == true)
                 return RedirectToAction("Index", "Dashboard");
 
-            // ── Case 3: Not authenticated → redirect to SSO ──
-            var ssoUrl = _config["AppSettings:AuthenUrl"] ?? "";
-            if (string.IsNullOrEmpty(ssoUrl))
-                return Content("AuthenUrl not configured. Please check appsettings.json", "text/plain");
-
-            return Redirect(ssoUrl);
+            // Case 3: Not logged in → go to SSO
+            return RedirectToSso();
         }
 
+        // ── Process SSO Callback ──────────────────────────────
         private async Task<IActionResult> ProcessSsoCallbackAsync(
             string ssoId, string adUser, string email, string fname, string depart)
         {
-            var session = await _authService.BuildSessionFromSsoAsync(ssoId, adUser, email, fname, depart);
-            if (session == null)
+            try
             {
-                _logger.LogWarning("SSO callback: BuildSession failed for user={user}", adUser);
-                var ssoUrl = _config["AppSettings:AuthenUrl"] ?? "/";
-                return Redirect(ssoUrl);
-            }
+                var session = await _authService.BuildSessionFromSsoAsync(
+                    ssoId, adUser, email, fname, depart);
 
-            // Build Cookie Claims
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.Name,  session.FullName),
-                new(ClaimTypes.Email, session.Email),
-                new(ClaimTypes.Role,  session.Role),
-                new("sso_id",         session.SsoId),
-                new("samacc",         session.SamAcc),
-                new("emp_code",       session.EmpCode),
-                new("department",     session.Department),
-                new("depmgr_sam",     session.DeptManagerSam),
-            };
-
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme, principal,
-                new AuthenticationProperties
+                if (session == null)
                 {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                });
+                    // ไม่ควรเกิดขึ้น (BuildSession ไม่คืน null แล้ว) — แต่ป้องกันไว้
+                    _logger.LogError("BuildSessionFromSsoAsync returned null for user={user}", adUser);
+                    return View("SsoError", (object)"Session could not be created. Please try again.");
+                }
 
-            // Store full session in cookie session store
-            SessionHelper.SetUser(HttpContext.Session, session);
+                // สร้าง Cookie Claims — ไม่เก็บ signature image ใน claim (ใหญ่เกิน)
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.Name,  session.FullName),
+                    new(ClaimTypes.Email, session.Email),
+                    new(ClaimTypes.Role,  session.Role),
+                    new("sso_id",         session.SsoId),
+                    new("samacc",         session.SamAcc),
+                    new("emp_code",       session.EmpCode),
+                    new("department",     session.Department),
+                    new("depmgr_sam",     session.DeptManagerSam),
+                };
 
-            _logger.LogInformation("SSO Login success: {sam} ({name}) dept={dept}",
-                session.SamAcc, session.FullName, session.Department);
+                var identity  = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
 
-            return RedirectToAction("Index", "Dashboard");
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme, principal,
+                    new AuthenticationProperties
+                    {
+                        IsPersistent = true,
+                        ExpiresUtc   = DateTimeOffset.UtcNow.AddHours(8)
+                    });
+
+                // เก็บ full session (รวม signature image) ไว้ใน server-side session
+                SessionHelper.SetUser(HttpContext.Session, session);
+
+                _logger.LogInformation("Login OK: {sam} ({name})", session.SamAcc, session.FullName);
+                return RedirectToAction("Index", "Dashboard");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SSO callback exception for user={user}", adUser);
+                return View("SsoError", (object)$"Login error: {ex.Message}");
+            }
+        }
+
+        // ── Redirect to SSO ───────────────────────────────────
+        private IActionResult RedirectToSso()
+        {
+            var ssoUrl = _config["AppSettings:AuthenUrl"] ?? "";
+            if (string.IsNullOrEmpty(ssoUrl))
+                return View("SsoError", (object)"AuthenUrl is not configured in appsettings.json");
+            return Redirect(ssoUrl);
         }
     }
 }

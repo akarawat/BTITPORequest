@@ -2,6 +2,9 @@ using BTITPORequest.Models;
 
 namespace BTITPORequest.Services.Interfaces
 {
+    // ──────────────────────────────────────────────────────────
+    // Auth Service
+    // ──────────────────────────────────────────────────────────
     public interface IAuthService
     {
         Task<UserSessionModel?> BuildSessionFromSsoAsync(
@@ -10,6 +13,9 @@ namespace BTITPORequest.Services.Interfaces
         Task<List<HRUserModel>> GetAllUsersAsync();
     }
 
+    // ──────────────────────────────────────────────────────────
+    // PO Service
+    // ──────────────────────────────────────────────────────────
     public interface IPOService
     {
         Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam);
@@ -32,43 +38,44 @@ namespace BTITPORequest.Services.Interfaces
         Task<string> GeneratePONumberAsync();
     }
 
+    // ──────────────────────────────────────────────────────────
+    // Digital Sign Service
+    // ──────────────────────────────────────────────────────────
     public interface IDigitalSignService
     {
         Task<bool> HealthCheckAsync();
 
-        /// <summary>
-        /// ดึงรูปลายเซ็นต์ของ user จาก bt_digitalsign
-        /// GET /api/signature-registry/user/{samAcc}
-        /// ต้องส่ง X-Api-Key: InternalApiKey
-        /// </summary>
-        Task<string?> GetSignatureImageAsync(string samAcc);
-
-        /// <summary>ไม่ใช้แล้ว (Windows SSO) — คืน null เสมอ</summary>
+        // ── JWT Token (/api/auth/token) ─────────────────────
         Task<string?> GetTokenAsync();
 
-        /// <summary>
-        /// POST /api/sign (Windows SSO)
-        /// สร้าง cryptographic signature สำหรับ workflow step
-        /// </summary>
+        // ── Cryptographic Sign (/api/sign) ──────────────────
         Task<DsSignResult?> SignDataAsync(
             string referenceId, string purpose,
             string signerUsername, string signerFullName,
             string? department = null, string? remarks = null);
 
-        /// <summary>
-        /// POST /api/pdf/sign (Windows SSO)
-        /// Embed digital signature ลง PDF
-        /// </summary>
+        // ── PDF Sign (/api/pdf/sign) ─────────────────────────
         Task<byte[]?> SignPdfAsync(
             byte[] pdfBytes, string documentName, string referenceId,
-            string signerUsername, string signerFullName,
-            string signerRole, int signPage = 1,
-            float x = 36f, float y = 36f,
-            float width = 200f, float height = 60f);
+            string signerUsername, string signerFullName, string signerRole,
+            int signPage = 1,
+            float x = 36f, float y = 36f, float width = 200f, float height = 60f);
+
+        // ── Signature Image (/api/signature-registry/image/{sam}) ──
+        /// <summary>
+        /// ดึงรูปภาพลายเซ็นต์จาก bt_digitalsign
+        /// ใช้ X-Api-Key header (InternalApiKey)
+        /// คืนค่าเป็น base64 PNG string
+        /// </summary>
+        Task<string?> GetSignatureImageAsync(string samAcc);
     }
 
+    // ──────────────────────────────────────────────────────────
+    // PDF Service
+    // ──────────────────────────────────────────────────────────
     public interface IPdfService
     {
-        Task<byte[]> GeneratePOPdfAsync(PORequestModel po, string signerUsername, string signerFullName);
+        Task<byte[]> GeneratePOPdfAsync(
+            PORequestModel po, string signerUsername, string signerFullName);
     }
 }

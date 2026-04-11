@@ -1,0 +1,29 @@
+@model string
+@{
+    Layout = null;
+    var ssoUrl = ViewContext.HttpContext.RequestServices
+        .GetService<IConfiguration>()!["AppSettings:AuthenUrl"] ?? "/";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Login Error — IT PO Request</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" />
+    <style>body{background:linear-gradient(135deg,#1a5676,#0d3349);min-height:100vh;}</style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+    <div class="text-center text-white p-4" style="max-width:480px;">
+        <i class="bi bi-exclamation-triangle-fill fs-1 text-warning mb-3 d-block"></i>
+        <h4 class="fw-bold mb-2">SSO Login Error</h4>
+        <p class="text-white-50 mb-4">@Model</p>
+        <a href="/" class="btn btn-light me-2">
+            <i class="bi bi-arrow-clockwise me-1"></i>Try Again
+        </a>
+        <a href="@ssoUrl" class="btn btn-outline-light">
+            <i class="bi bi-box-arrow-in-right me-1"></i>Back to SSO
+        </a>
+    </div>
+</body>
+</html>

@@ -7,38 +7,41 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
+// Cookie Auth — LoginPath ชี้ไป SSO redirect
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Auth/SsoRedirect";
-        options.LogoutPath = "/Auth/Logout";
+        options.LoginPath       = "/Auth/SsoRedirect";
+        options.LogoutPath      = "/Auth/Logout";
         options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.ExpireTimeSpan  = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-        options.Cookie.Name = "BTITPORequest.Auth";
+        options.Cookie.Name     = "BTITPORequest.Auth";
     });
 
+// Session — ใช้ In-Memory (dev)
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
+    options.IdleTimeout         = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly     = true;
+    options.Cookie.IsEssential  = true;
 });
 
-// HttpClient — BTDigitalSign API
+// HttpClient — BTDigitalSign API (5s connect timeout)
 builder.Services.AddHttpClient("DigitalSign", client =>
 {
     var baseUrl = builder.Configuration["DigitalSignApi:BaseUrl"] ?? "";
     client.BaseAddress = new Uri(baseUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(8);
 });
 
-// DI
+// DI Services
 builder.Services.AddSingleton<DbContext>();
+builder.Services.AddScoped<IDigitalSignService, DigitalSignService>(); // ต้องก่อน AuthService
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPOService, POService>();
-builder.Services.AddScoped<IDigitalSignService, DigitalSignService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddHttpContextAccessor();
 
@@ -57,10 +60,8 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// SSO callback at root "/"
-app.MapControllerRoute("home-root", "", new { controller = "Home", action = "Index" });
-
-// Default MVC route
-app.MapControllerRoute("default", "{controller=Dashboard}/{action=Index}/{id?}");
+// ── Routes ─────────────────────────────────────────────────
+// Default MVC — controller/action ก่อน
+app.MapControllerRoute("default", "{controller}/{action=Index}/{id?}");
 
 app.Run();

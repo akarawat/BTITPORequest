@@ -59,6 +59,16 @@
                     }
                 </a>
             </li>
+            @if (User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin")
+            {
+                <li class="nav-section-label">Administration</li>
+                <li class="nav-item">
+                    <a class="bt-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active" : "")"
+                       asp-controller="Admin" asp-action="Index">
+                        <i class="bi bi-shield-lock"></i> Role Management
+                    </a>
+                </li>
+            }
         </ul>
 
         <div class="bt-sidebar-footer px-3 py-2">

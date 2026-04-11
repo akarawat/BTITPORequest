@@ -11,6 +11,11 @@ namespace BTITPORequest.Services
         private readonly IConfiguration _config;
         private readonly ILogger<DigitalSignService> _logger;
 
+        // JWT token cache
+        private static string? _cachedToken;
+        private static DateTime _tokenExpiry = DateTime.MinValue;
+        private static readonly SemaphoreSlim _tokenLock = new(1, 1);
+
         public DigitalSignService(
             IHttpClientFactory httpClientFactory,
             IConfiguration config,
@@ -21,15 +26,14 @@ namespace BTITPORequest.Services
             _logger = logger;
         }
 
-        // ── สร้าง HttpClient พร้อม X-Api-Key header ──────────
-        private HttpClient CreateClient(string? samAccount = null)
+        // ── Shared: API Key header ────────────────────────────
+        private string ApiKey => _config["DigitalSignApi:ApiKey"] ?? "";
+
+        private System.Net.Http.HttpClient CreateClientWithApiKey()
         {
             var client = _httpClientFactory.CreateClient("DigitalSign");
-            var apiKey = _config["DigitalSignApi:ApiKey"] ?? "";
-            if (!string.IsNullOrEmpty(apiKey))
-                client.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
-            if (!string.IsNullOrEmpty(samAccount))
-                client.DefaultRequestHeaders.Add("X-Sam-Account", samAccount);
+            if (!string.IsNullOrEmpty(ApiKey))
+                client.DefaultRequestHeaders.TryAddWithoutValidation("X-Api-Key", ApiKey);
             return client;
         }
 
@@ -38,7 +42,6 @@ namespace BTITPORequest.Services
         {
             try
             {
-                // health endpoint ไม่ต้องใช้ ApiKey
                 var client = _httpClientFactory.CreateClient("DigitalSign");
                 var r = await client.GetAsync("/api/certificate/health");
                 return r.IsSuccessStatusCode;
@@ -50,53 +53,43 @@ namespace BTITPORequest.Services
             }
         }
 
-        // ── GetTokenAsync ไม่ใช้แล้ว (Windows SSO) ──────────
-        public Task<string?> GetTokenAsync() => Task.FromResult<string?>(null);
-
-        // ── ดึง Signature Image ───────────────────────────────
-        /// <summary>
-        /// GET /api/signature-registry/user/{samAccount}
-        /// ต้องส่ง X-Api-Key header
-        /// คืน base64 PNG string
-        /// </summary>
-        public async Task<string?> GetSignatureImageAsync(string samAcc)
+        // ── Get JWT Token ─────────────────────────────────────
+        // POST /api/auth/token  (username + password)
+        public async Task<string?> GetTokenAsync()
         {
-            if (string.IsNullOrWhiteSpace(samAcc)) return null;
-            var sam = samAcc.ToLower().Trim();
-
+            await _tokenLock.WaitAsync();
             try
             {
-                var client = CreateClient();
-                var response = await client.GetAsync($"/api/signature-registry/user/{sam}");
+                if (!string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _tokenExpiry)
+                    return _cachedToken;
 
+                var dsConfig = _config.GetSection("DigitalSignApi");
+                var client = CreateClientWithApiKey();
+
+                var payload = new { username = dsConfig["Username"], password = dsConfig["Password"] };
+                var content = new StringContent(
+                    JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync("/api/auth/token", content);
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("GetSignatureImage: {status} for {sam}", response.StatusCode, sam);
+                    _logger.LogError("DigitalSign token failed: {status}", response.StatusCode);
                     return null;
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<DsApiResponse<SignatureRegistryData>>(json);
+                var result = JsonConvert.DeserializeObject<DsApiResponse<DsTokenResult>>(json);
+                if (result?.Success != true || result.Data == null) return null;
 
-                if (result?.Success == true && !string.IsNullOrEmpty(result.Data?.SignatureImageBase64))
-                {
-                    _logger.LogInformation("Got signature image for {sam}", sam);
-                    return result.Data.SignatureImageBase64;
-                }
-
-                return null;
+                _cachedToken = result.Data.AccessToken;
+                _tokenExpiry = DateTime.UtcNow.AddMinutes(450); // cache 7.5 hrs
+                return _cachedToken;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetSignatureImageAsync failed for {sam}", sam);
-                return null;
-            }
+            finally { _tokenLock.Release(); }
         }
 
         // ── Sign Data ─────────────────────────────────────────
-        /// <summary>
-        /// POST /api/sign (Windows SSO — ใช้ UseDefaultCredentials)
-        /// </summary>
+        // POST /api/sign  (requires JWT Bearer)
         public async Task<DsSignResult?> SignDataAsync(
             string referenceId, string purpose,
             string signerUsername, string signerFullName,
@@ -104,66 +97,67 @@ namespace BTITPORequest.Services
         {
             try
             {
-                // Sign endpoint ใช้ Windows SSO — สร้าง client แยก
-                var handler = new HttpClientHandler { UseDefaultCredentials = true };
-                using var client = new HttpClient(handler)
-                {
-                    BaseAddress = new Uri(_config["DigitalSignApi:BaseUrl"] ?? ""),
-                    Timeout = TimeSpan.FromSeconds(30)
-                };
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                var token = await GetTokenAsync();
+                if (string.IsNullOrEmpty(token))
+                    return new DsSignResult { IsSuccess = false, ErrorMessage = "Cannot get signing token" };
+
+                var client = CreateClientWithApiKey();
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                 var request = new DsSignRequest
                 {
-                    DataToSign = $"PO:{referenceId} | {purpose} | {signerFullName}",
+                    DataToSign = $"IT Purchase Order {referenceId} — {purpose} by {signerFullName}",
                     ReferenceId = referenceId,
                     Purpose = purpose,
                     Department = department,
-                    Remarks = remarks ?? $"IT Purchase Order — {purpose}"
+                    Remarks = remarks ?? $"IT PO {purpose}"
                 };
 
-                var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+                var content = new StringContent(
+                    JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync("/api/sign", content);
                 var json = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("SignData {status}: {json}", response.StatusCode, json);
+                    _logger.LogError("SignData failed {status}: {json}", response.StatusCode, json);
                     return new DsSignResult { IsSuccess = false, ErrorMessage = $"HTTP {response.StatusCode}" };
                 }
 
                 var result = JsonConvert.DeserializeObject<DsApiResponse<DsSignResult>>(json);
                 if (result?.Data != null) result.Data.IsSuccess = result.Success;
-                _logger.LogInformation("Signed PO {ref} — {purpose} by {user}", referenceId, purpose, signerUsername);
                 return result?.Data;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SignDataAsync failed. Ref={ref}", referenceId);
+                _logger.LogError(ex, "SignDataAsync error. Ref={ref}", referenceId);
                 return new DsSignResult { IsSuccess = false, ErrorMessage = ex.Message };
             }
         }
 
         // ── Sign PDF ──────────────────────────────────────────
-        /// <summary>
-        /// POST /api/pdf/sign (Windows SSO)
-        /// ส่ง SignerUsername เพื่อ override double-hop identity
-        /// </summary>
+        // POST /api/pdf/sign  (requires JWT Bearer)
         public async Task<byte[]?> SignPdfAsync(
             byte[] pdfBytes, string documentName, string referenceId,
-            string signerUsername, string signerFullName,
-            string signerRole, int signPage = 1,
-            float x = 36f, float y = 36f, float width = 200f, float height = 60f)
+            string signerUsername, string signerFullName, string signerRole,
+            int signPage = 1, float x = 36f, float y = 36f,
+            float width = 200f, float height = 60f)
         {
             try
             {
-                var handler = new HttpClientHandler { UseDefaultCredentials = true };
-                using var client = new HttpClient(handler)
+                var token = await GetTokenAsync();
+                if (string.IsNullOrEmpty(token))
                 {
-                    BaseAddress = new Uri(_config["DigitalSignApi:BaseUrl"] ?? ""),
-                    Timeout = TimeSpan.FromSeconds(60)
-                };
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                    _logger.LogWarning("SignPdf: no token, returning unsigned PDF");
+                    return pdfBytes;
+                }
+
+                var dsConfig = _config.GetSection("DigitalSignApi");
+                var client = CreateClientWithApiKey();
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                client.Timeout = TimeSpan.FromSeconds(60);
 
                 var request = new DsPdfSignRequest
                 {
@@ -175,49 +169,70 @@ namespace BTITPORequest.Services
                     SignerUsername = signerUsername,
                     SignerFullName = signerFullName,
                     SignerRole = signerRole,
-                    WebSource = _config["DigitalSignApi:WebSource"],
-                    DocumentType = _config["DigitalSignApi:DocumentType"],
+                    WebSource = dsConfig["WebSource"],
+                    DocumentType = dsConfig["DocumentType"],
                     SignaturePage = signPage,
                     SignatureX = x, SignatureY = y,
                     SignatureWidth = width, SignatureHeight = height
                 };
 
-                var content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+                var content = new StringContent(
+                    JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync("/api/pdf/sign", content);
                 var json = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("SignPdf {status}: {json}", response.StatusCode, json);
+                    _logger.LogError("SignPdf failed {status}: {json}", response.StatusCode, json);
                     return pdfBytes; // fallback unsigned
                 }
 
                 var result = JsonConvert.DeserializeObject<DsApiResponse<DsPdfSignResult>>(json);
                 if (result?.Success == true && !string.IsNullOrEmpty(result.Data?.PdfBase64))
-                {
-                    _logger.LogInformation("PDF signed. Ref={ref} by {user}", referenceId, signerUsername);
                     return Convert.FromBase64String(result.Data.PdfBase64);
-                }
 
                 return pdfBytes;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SignPdfAsync failed. Ref={ref}", referenceId);
+                _logger.LogError(ex, "SignPdfAsync error. Ref={ref}", referenceId);
                 return pdfBytes;
             }
         }
-    }
 
-    // ── DTO สำหรับ /api/signature-registry/user/{sam} ─────────
-    public class SignatureRegistryData
-    {
-        public string SamAccountName { get; set; } = string.Empty;
-        public string FullNameEN { get; set; } = string.Empty;
-        public string FullNameTH { get; set; } = string.Empty;
-        public string Position { get; set; } = string.Empty;
-        public string Department { get; set; } = string.Empty;
-        public bool IsApproved { get; set; }
-        public string SignatureImageBase64 { get; set; } = string.Empty;
+        // ── Get Signature Image ───────────────────────────────
+        // GET /api/signature-registry/image/{samAccount}
+        // Header: X-Api-Key = InternalApiKey (ApiKey ใน appsettings.json)
+        public async Task<string?> GetSignatureImageAsync(string samAcc)
+        {
+            if (string.IsNullOrWhiteSpace(samAcc)) return null;
+            var sam = samAcc.ToLower().Trim();
+
+            try
+            {
+                var client = CreateClientWithApiKey();
+                // endpoint ดึง binary image โดยตรง
+                var response = await client.GetAsync($"/api/signature-registry/image/{sam}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation(
+                        "GetSignatureImage: {sam} returned {status} (no signature registered yet?)",
+                        sam, response.StatusCode);
+                    return null;
+                }
+
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                if (bytes.Length == 0) return null;
+
+                _logger.LogInformation("Got signature image for {sam} ({bytes} bytes)", sam, bytes.Length);
+                return Convert.ToBase64String(bytes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetSignatureImageAsync error for {sam}", sam);
+                return null;
+            }
+        }
     }
 }
