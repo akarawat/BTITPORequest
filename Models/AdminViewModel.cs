@@ -3,7 +3,7 @@ namespace BTITPORequest.Models
     // ── Employee from ITPO_GetEmployeelist SP ────────────────
     public class EmployeeModel
     {
-        public string USERID { get; set; } = string.Empty;
+        public Guid USERID { get; set; }
         public string DISPNAME { get; set; } = string.Empty;
         public string DISPNAME_TH { get; set; } = string.Empty;
         public string UEMAIL { get; set; } = string.Empty;

@@ -1,4 +1,5 @@
-wwwroot\css\site.css
-wwwroot\js\dashboard.js
 wwwroot\js\po-form.js
+wwwroot\js\dashboard.js
+wwwroot\js\admin-roles.js
+wwwroot\css\site.css
 wwwroot\js\site.js
