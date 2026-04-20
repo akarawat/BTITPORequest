@@ -58,14 +58,19 @@ namespace BTITPORequest.Controllers
 
         // ── CREATE ────────────────────────────────────────────
         [HttpGet]
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
             var user = CurrentUser;
+            var issuers   = await _poService.GetUsersByRoleAsync("Issuer");
+            var approvers = await _poService.GetUsersByRoleAsync("Approver");
+
             return View(new POCreateViewModel
             {
                 PO = new PORequestModel { PODate = DateTime.Today },
-                CurrentUserSam = user.SamAcc,
-                CurrentUserName = user.FullName
+                CurrentUserSam  = user.SamAcc,
+                CurrentUserName = user.FullName,
+                Issuers   = issuers,
+                Approvers = approvers
             });
         }
 
@@ -73,6 +78,9 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Create(
             [FromForm] PORequestModel po,
             [FromForm] string lineItemsJson,
+            [FromForm] string selectedIssuerSam    = "",
+            [FromForm] string selectedApprover1Sam = "",
+            [FromForm] string selectedApprover2Sam = "",
             [FromForm] bool submitNow = false)
         {
             var user = CurrentUser;
@@ -80,10 +88,20 @@ namespace BTITPORequest.Controllers
             if (lineItems.Count == 0)
             {
                 ModelState.AddModelError("", "Please add at least one line item.");
-                return View(new POCreateViewModel { PO = po, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName });
+                var issuers   = await _poService.GetUsersByRoleAsync("Issuer");
+                var approvers = await _poService.GetUsersByRoleAsync("Approver");
+                return View(new POCreateViewModel
+                {
+                    PO = po, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName,
+                    Issuers = issuers, Approvers = approvers,
+                    SelectedIssuerSam = selectedIssuerSam,
+                    SelectedApprover1Sam = selectedApprover1Sam,
+                    SelectedApprover2Sam = selectedApprover2Sam
+                });
             }
             RecalcTotals(po, lineItems);
-            var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc);
+            var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc,
+                selectedIssuerSam, selectedApprover1Sam, selectedApprover2Sam);
 
             if (submitNow)
                 await DoSubmitAsync(poId, po.PONumber, user);

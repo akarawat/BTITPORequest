@@ -168,6 +168,88 @@
                 </div>
             </div>
 
+            <!-- Workflow Assignment -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="bi bi-diagram-3 me-2 text-primary"></i>Assign Workflow
+                    </h6>
+                    <p class="text-muted mb-0" style="font-size:.75rem;">
+                        กำหนดผู้ที่จะลงนามในแต่ละขั้นตอน
+                    </p>
+                </div>
+                <div class="card-body">
+                    <!-- Issuer -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <span class="badge bg-info me-1">Issued</span>
+                            ผู้ Issue PO <span class="text-danger">*</span>
+                        </label>
+                        @if (Model.Issuers.Any())
+                        {
+                            <select name="selectedIssuerSam" class="form-select" id="issuerSelect">
+                                <option value="">— เลือกผู้ Issue —</option>
+                                @foreach (var u in Model.Issuers)
+                                {
+                                    <option value="@u.SamAcc"
+                                            selected="@(Model.SelectedIssuerSam == u.SamAcc)"
+                                            data-name="@u.FullName"
+                                            data-dept="@u.Department">
+                                        @u.FullName
+                                        @if (!string.IsNullOrEmpty(u.Department))
+                                        { <text> — @u.Department</text> }
+                                    </option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning py-2 mb-0" style="font-size:.8rem;">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                ยังไม่มีการกำหนด Issuer
+                                <a href="/Admin" target="_blank" class="alert-link">ตั้งค่าที่ Admin</a>
+                            </div>
+                            <input type="hidden" name="selectedIssuerSam" value="" />
+                        }
+                    </div>
+
+                    <!-- Approver -->
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">
+                            <span class="badge bg-success me-1">Authorized</span>
+                            ผู้อนุมัติ <span class="text-danger">*</span>
+                        </label>
+                        @if (Model.Approvers.Any())
+                        {
+                            <select name="selectedApprover1Sam" class="form-select" id="approverSelect">
+                                <option value="">— เลือกผู้อนุมัติ —</option>
+                                @foreach (var u in Model.Approvers)
+                                {
+                                    <option value="@u.SamAcc"
+                                            selected="@(Model.SelectedApprover1Sam == u.SamAcc)"
+                                            data-name="@u.FullName"
+                                            data-dept="@u.Department">
+                                        @u.FullName
+                                        @if (!string.IsNullOrEmpty(u.Department))
+                                        { <text> — @u.Department</text> }
+                                    </option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning py-2 mb-0" style="font-size:.8rem;">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                ยังไม่มีการกำหนด Approver
+                                <a href="/Admin" target="_blank" class="alert-link">ตั้งค่าที่ Admin</a>
+                            </div>
+                            <input type="hidden" name="selectedApprover1Sam" value="" />
+                        }
+                        <input type="hidden" name="selectedApprover2Sam" value="" />
+                    </div>
+                </div>
+            </div>
+
             <!-- Notes -->
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-transparent border-0 pb-0">

@@ -18,7 +18,9 @@ namespace BTITPORequest.Services.Interfaces
     // ──────────────────────────────────────────────────────────
     public interface IPOService
     {
-        Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam);
+        Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam,
+            string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "");
+        Task<List<UserRoleModel>> GetUsersByRoleAsync(string roleName);
         Task UpdatePOAsync(PORequestModel po, List<POLineItemModel> lineItems);
         Task<PORequestModel?> GetPOByIdAsync(int poId);
         Task<PORequestModel?> GetPOByNumberAsync(string poNumber);

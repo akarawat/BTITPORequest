@@ -24,7 +24,8 @@ namespace BTITPORequest.Services
             return result ?? $"BTPO{DateTime.Now:yyMMddHHmm}";
         }
 
-        public async Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam)
+        public async Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam,
+            string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "")
         {
             using var conn = _db.GetBTITReqConnection();
             conn.Open();
@@ -45,6 +46,9 @@ namespace BTITPORequest.Services
                         po.Total, po.VatPercent, po.VatAmount,
                         po.GrandTotal, po.GrandTotalText,
                         RequesterSam = creatorSam,
+                        PreAssignedIssuerSam    = preAssignedIssuerSam,
+                        PreAssignedApprover1Sam = preAssignedApprover1Sam,
+                        PreAssignedApprover2Sam = preAssignedApprover2Sam,
                         Status = (int)POStatus.Draft
                     },
                     transaction: tx, commandType: CommandType.StoredProcedure);
@@ -65,6 +69,23 @@ namespace BTITPORequest.Services
                 return poId;
             }
             catch { tx.Rollback(); throw; }
+        }
+
+        public async Task<List<UserRoleModel>> GetUsersByRoleAsync(string roleName)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                var result = await conn.QueryAsync<UserRoleModel>(
+                    "SELECT * FROM ITPO_UserRoles WHERE RoleName = @RoleName ORDER BY FullName",
+                    new { RoleName = roleName });
+                return result.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetUsersByRoleAsync failed for role={role}", roleName);
+                return new List<UserRoleModel>();
+            }
         }
 
         public async Task UpdatePOAsync(PORequestModel po, List<POLineItemModel> lineItems)

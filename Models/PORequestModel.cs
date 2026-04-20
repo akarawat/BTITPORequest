@@ -41,6 +41,11 @@ namespace BTITPORequest.Models
         public string GrandTotalText { get; set; } = string.Empty;
         public string Notes { get; set; } = "- Please sign & fax back to us after receipt P/O for order confirmation.\r\n- Terms of payment: 30 day net.\r\n- Lead time / delivery: within 3 - 5 Days of issued P/O date.";
 
+        // Pre-assigned workflow members (set at creation time)
+        public string PreAssignedIssuerSam { get; set; } = string.Empty;
+        public string PreAssignedApprover1Sam { get; set; } = string.Empty;
+        public string PreAssignedApprover2Sam { get; set; } = string.Empty;
+
         // Status
         public POStatus Status { get; set; } = POStatus.Draft;
         public string StatusLabel => Status switch
@@ -148,6 +153,15 @@ namespace BTITPORequest.Models
         public List<POLineItemModel> LineItems { get; set; } = new();
         public string CurrentUserSam { get; set; } = string.Empty;
         public string CurrentUserName { get; set; } = string.Empty;
+
+        // Pre-assign Issuer & Approver at creation time
+        public string SelectedIssuerSam { get; set; } = string.Empty;
+        public string SelectedApprover1Sam { get; set; } = string.Empty;
+        public string SelectedApprover2Sam { get; set; } = string.Empty;
+
+        // Dropdown options — loaded from ITPO_UserRoles
+        public List<UserRoleModel> Issuers { get; set; } = new();
+        public List<UserRoleModel> Approvers { get; set; } = new();
     }
 
     public class POListViewModel

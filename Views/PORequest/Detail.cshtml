@@ -83,8 +83,10 @@
                     <tr><td class="fw-semibold py-1">Company:</td><td>@Model.VendorCompany</td></tr>
                     <tr><td class="fw-semibold py-1">Address:</td><td>@Model.VendorAddress</td></tr>
                     <tr>
-                        <td class="fw-semibold py-1">Tel No.:</td><td>@Model.VendorTel</td>
-                        <td class="fw-semibold py-1">Fax No.:</td><td>@Model.VendorFax</td>
+                        <td class="fw-semibold py-1">Tel No.:</td>
+                        <td>@Model.VendorTel</td>
+                        <td class="fw-semibold py-1">Fax No.:</td>
+                        <td>@Model.VendorFax</td>
                     </tr>
                     <tr><td class="fw-semibold py-1">E-mail:</td><td>@Model.VendorEmail</td></tr>
                     <tr><td class="fw-semibold py-1">Ref.:</td><td>@Model.RefNo</td></tr>
@@ -156,9 +158,9 @@
 
                     @* Supplier *@
                     <div class="col-3">
-                        <div class="border rounded p-2" style="min-height:90px;">
-                            <div class="small text-muted mb-1">For Supplier<br/>Sign &amp; Feedback</div>
-                            <div class="bt-sign-placeholder"></div>
+                        <div class="border rounded p-2 bg-light" style="min-height:90px;">
+                            <div class="small text-muted mb-1 fw-semibold">For Supplier<br />Sign &amp; Feedback</div>
+                            <div style="height:40px;border:1px dashed #ccc;border-radius:4px;margin:4px 0;"></div>
                         </div>
                     </div>
 
@@ -172,12 +174,22 @@
                             @if (!string.IsNullOrEmpty(Model.RequesterSignatureImage))
                             {
                                 <img src="data:image/png;base64,@Model.RequesterSignatureImage"
-                                     alt="Signature" style="max-height:40px;max-width:100%;" class="mb-1" />
+                                     alt="Signature" class="mb-1"
+                                     style="max-height:45px;max-width:100%;object-fit:contain;" />
                             }
                             else if (reqSigned)
                             {
                                 <div class="text-success small mb-1">
                                     <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                </div>
+                            }
+                            else if (Model.Status != POStatus.Draft)
+                            {
+                                <div class="mb-1" style="font-size:.7rem;">
+                                    <a href="https://bt_signature.berninathailand.com/SignatureRegistry"
+                                       target="_blank" class="text-muted text-decoration-none">
+                                        <i class="bi bi-pencil-square me-1"></i>ลงทะเบียนลายเซ็น
+                                    </a>
                                 </div>
                             }
                             <div class="small fw-semibold">@Model.RequesterName</div>
@@ -196,18 +208,24 @@
                         bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
                     }
                     <div class="col-3">
-                        <div class="border rounded p-2 @(issSigned ? "border-success" : "")" style="min-height:90px;">
-                            <div class="small text-muted mb-1">Issued:</div>
+                        <div class="border rounded p-2 @(issSigned ? "border-success border-2" : "")" style="min-height:90px;">
+                            <div class="small text-muted mb-1 fw-semibold">Issued:</div>
                             @if (!string.IsNullOrEmpty(Model.IssuerSignatureImage))
                             {
                                 <img src="data:image/png;base64,@Model.IssuerSignatureImage"
-                                     alt="Signature" style="max-height:40px;max-width:100%;" class="mb-1" />
+                                     alt="Signature" class="mb-1"
+                                     style="max-height:45px;max-width:100%;object-fit:contain;" />
                             }
                             else if (issSigned)
                             {
                                 <div class="text-success small mb-1">
                                     <i class="bi bi-patch-check-fill"></i> Digitally Signed
                                 </div>
+                            }
+                            else
+                            {
+
+                                <div style="height:40px;"></div>
                             }
                             <div class="small fw-semibold">@Model.IssuerName</div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.IssuerTitle</div>
@@ -222,15 +240,15 @@
 
                     @* Authorized (Approver 2 final, fallback Approver 1) *@
                     @{
-                        var authName  = Model.Approver2Name  ?? Model.Approver1Name  ?? "";
+                        var authName = Model.Approver2Name ?? Model.Approver1Name ?? "";
                         var authTitle = Model.Approver2Title ?? Model.Approver1Title ?? "";
-                        var authImg   = !string.IsNullOrEmpty(Model.Approver2SignatureImage)
-                                        ? Model.Approver2SignatureImage
-                                        : Model.Approver1SignatureImage ?? "";
-                        var authSig   = !string.IsNullOrEmpty(Model.Approver2SignatureBase64)
-                                        ? Model.Approver2SignatureBase64
-                                        : Model.Approver1SignatureBase64 ?? "";
-                        var authDate  = Model.Approver2Date ?? Model.Approver1Date;
+                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage)
+                        ? Model.Approver2SignatureImage
+                        : Model.Approver1SignatureImage ?? "";
+                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64)
+                        ? Model.Approver2SignatureBase64
+                        : Model.Approver1SignatureBase64 ?? "";
+                        var authDate = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
                     }
                     <div class="col-3">
@@ -246,6 +264,11 @@
                                 <div class="text-success small mb-1">
                                     <i class="bi bi-patch-check-fill"></i> Digitally Signed
                                 </div>
+                            }
+                            else
+                            {
+
+                                <div style="height:40px;"></div>
                             }
                             <div class="small fw-semibold">@authName</div>
                             <div class="text-muted" style="font-size:.7rem;">@authTitle</div>
@@ -325,23 +348,39 @@
                 @{
                     var steps = new[]
                     {
-                        ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
-                        ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
-                        ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
-                        ("Authorized", POStatus.Authorized, "bi-shield-check",  "warning"),
-                        ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
-                    };
+                                ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
+                                ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
+                                ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
+                                ("Authorized", POStatus.Authorized, "bi-shield-check",  "warning"),
+                                ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
+                                };
                 }
                 <div class="bt-workflow">
                     @foreach (var (label, status, icon, color) in steps)
                     {
                         bool isDone = (int)Model.Status > (int)status || Model.Status == status;
                         bool isCurrent = Model.Status == status;
+
+                        // แสดงชื่อผู้รับผิดชอบที่ pre-assign ไว้
+                        string assignedPerson = status switch
+                        {
+                            POStatus.Issued => Model.IssuerName ?? Model.PreAssignedIssuerSam,
+                            POStatus.Authorized => Model.Approver1Name ?? Model.PreAssignedApprover1Sam,
+                            POStatus.Completed => Model.Approver2Name ?? Model.PreAssignedApprover2Sam,
+                            _ => ""
+                        };
+
                         <div class="bt-workflow-step @(isDone ? "done" : "") @(isCurrent ? "current" : "")">
                             <div class="bt-workflow-icon text-@color">
                                 <i class="bi @icon"></i>
                             </div>
-                            <div class="bt-workflow-label">@label</div>
+                            <div>
+                                <div class="bt-workflow-label">@label</div>
+                                @if (!string.IsNullOrEmpty(assignedPerson) && !isDone)
+                                {
+                                    <div class="text-muted" style="font-size:.7rem;">@assignedPerson</div>
+                                }
+                            </div>
                         </div>
                     }
                 </div>
