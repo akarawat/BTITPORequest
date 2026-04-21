@@ -22,7 +22,20 @@ namespace BTITPORequest.Helpers
         /// <summary>สร้าง UserSessionModel จาก ClaimsPrincipal (cookie auth)</summary>
         public static UserSessionModel? GetUserFromClaims(ClaimsPrincipal principal)
         {
-            if (principal?.Identity?.IsAuthenticated != true) return null;
+            //if (principal?.Identity?.IsAuthenticated != true) return null;
+            //return new UserSessionModel
+            //{
+            //    SsoId = "1234679",
+            //    SamAcc = "jirawat.k",
+            //    EmpCode = "S01409",
+            //    FullName = "jirawat kanfan",
+            //    Email = "jirawat.k@berninathailand.com",
+            //    Department = "Planning, Project & IT",
+            //    DeptManagerSam = "pannee.j",
+            //    SignatureImageBase64 = "",
+            //    Role = "User"
+            //};
+            
             return new UserSessionModel
             {
                 SsoId = principal.FindFirstValue("sso_id") ?? "",
@@ -35,6 +48,7 @@ namespace BTITPORequest.Helpers
                 SignatureImageBase64 = principal.FindFirstValue("signature_b64") ?? "",
                 Role = principal.FindFirstValue(ClaimTypes.Role) ?? "User"
             };
+            
         }
     }
 }

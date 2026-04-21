@@ -27,57 +27,57 @@ namespace BTITPORequest.Services
 
             _logger.LogInformation("SSO: building session for sam={sam}", samAcc);
 
-            // ดึงข้อมูลพร้อมกัน timeout 5 วินาที
             HRUserModel? hrUser = null;
             string? sigBase64 = null;
             string role = "User";
 
+            // ── Role: ดึงก่อนแยกต่างหาก — fast query, ไม่ควรถูก cancel ──
+            role = await GetUserRoleSafeAsync(samAcc);
+
+            // ── HR + Signature: ดึงพร้อมกัน timeout 5 วินาที ─────────────
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try
             {
-                var hrTask   = GetHRUserSafeAsync(samAcc, cts.Token);
-                var sigTask  = GetSignatureSafeAsync(samAcc, cts.Token);
-                var roleTask = GetUserRoleSafeAsync(samAcc, cts.Token);
-                await Task.WhenAll(hrTask, sigTask, roleTask);
-                hrUser   = hrTask.Result;
+                var hrTask = GetHRUserSafeAsync(samAcc, cts.Token);
+                var sigTask = GetSignatureSafeAsync(samAcc, cts.Token);
+                await Task.WhenAll(hrTask, sigTask);
+                hrUser = hrTask.Result;
                 sigBase64 = sigTask.Result;
-                role     = roleTask.Result;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Fetch timeout for {sam}", samAcc);
+                _logger.LogWarning(ex, "HR/Signature fetch timeout for {sam}", samAcc);
             }
 
             var session = new UserSessionModel
             {
-                SsoId               = ssoId,
-                SamAcc              = samAcc,
-                FullName            = fname,
-                Email               = string.IsNullOrEmpty(email) ? hrUser?.user_email ?? "" : email,
-                Department          = depart,
-                DeptManagerSam      = hrUser?.samacc_depmgr ?? string.Empty,
-                DeptManagerEmail    = hrUser?.depmgr_email  ?? string.Empty,
-                EmpCode             = hrUser?.emp_code       ?? string.Empty,
-                SignatureImageBase64 = sigBase64              ?? string.Empty,
-                Role                = role
+                SsoId = ssoId,
+                SamAcc = samAcc,
+                FullName = fname,
+                Email = string.IsNullOrEmpty(email) ? hrUser?.user_email ?? "" : email,
+                Department = depart,
+                DeptManagerSam = hrUser?.samacc_depmgr ?? string.Empty,
+                DeptManagerEmail = hrUser?.depmgr_email ?? string.Empty,
+                EmpCode = hrUser?.emp_code ?? string.Empty,
+                SignatureImageBase64 = sigBase64 ?? string.Empty,
+                Role = role
             };
 
             _logger.LogInformation("Session built: {sam} role={role}", samAcc, role);
             return session;
         }
 
-        // ── Get role from ITPO_UserRoles ─────────────────────
-        private async Task<string> GetUserRoleSafeAsync(string samAcc, CancellationToken ct)
+        // ── Get role — ไม่ใช้ CancellationToken เพราะเป็น fast local query ──
+        private async Task<string> GetUserRoleSafeAsync(string samAcc)
         {
             try
             {
                 using var conn = _db.GetBTITReqConnection();
-                var cmd = new CommandDefinition(
+                var role = await conn.ExecuteScalarAsync<string>(
                     "ITPO_sp_GetUserRole",
                     new { SamAcc = samAcc },
-                    commandType: System.Data.CommandType.StoredProcedure,
-                    cancellationToken: ct);
-                var role = await conn.ExecuteScalarAsync<string>(cmd);
+                    commandType: System.Data.CommandType.StoredProcedure);
+                _logger.LogInformation("GetUserRole: {sam} = {role}", samAcc, role ?? "User");
                 return role ?? "User";
             }
             catch (Exception ex)
