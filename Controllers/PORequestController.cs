@@ -148,11 +148,32 @@ namespace BTITPORequest.Controllers
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
-            po.CanEdit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
+            po.CanEdit   = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
             po.CanSubmit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
-            po.CanIssue = po.Status == POStatus.Requested && user.Role is "Issuer" or "Admin";
-            po.CanApprove1 = po.Status == POStatus.Issued && user.Role is "Approver" or "Admin";
-            po.CanApprove2 = po.Status == POStatus.Authorized && user.Role is "Approver" or "Admin";
+
+            // CanIssue: Issuer role + ถ้ามี PreAssigned ต้องเป็น person นั้น
+            po.CanIssue = po.Status == POStatus.Requested
+                && (user.Role == "Admin"
+                    || (user.Role == "Issuer"
+                        && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
+                            || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+
+            // CanApprove1: Approver role + ถ้ามี PreAssigned ต้องเป็น person นั้น
+            po.CanApprove1 = po.Status == POStatus.Issued
+                && (user.Role == "Admin"
+                    || (user.Role == "Approver"
+                        && (string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
+                            || po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+
+            // CanApprove2: ใช้ PreAssigned2 ถ้ามี ไม่งั้น fallback ไป PreAssigned1
+            var preApp2 = !string.IsNullOrEmpty(po.PreAssignedApprover2Sam)
+                          ? po.PreAssignedApprover2Sam : po.PreAssignedApprover1Sam;
+            po.CanApprove2 = po.Status == POStatus.Authorized
+                && (user.Role == "Admin"
+                    || (user.Role == "Approver"
+                        && (string.IsNullOrEmpty(preApp2)
+                            || preApp2.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+
             po.CanDownloadPDF = po.Status == POStatus.Completed &&
                 (po.RequesterSam == user.SamAcc || user.Role == "Admin");
 

@@ -203,6 +203,12 @@
 
                             <div class="small fw-semibold">@Model.RequesterName</div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.RequesterTitle</div>
+                            @if (!string.IsNullOrEmpty(Model.RequesterSam))
+                            {
+                                <div class="text-muted" style="font-size:.65rem;">
+                                    <i class="bi bi-person-badge me-1"></i>@Model.RequesterSam
+                                </div>
+                            }
                             @if (Model.RequestedDate.HasValue)
                             {
                                 <div class="text-muted" style="font-size:.65rem;">
@@ -215,7 +221,10 @@
                     @* Issued *@
                     @{
                         bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
-                        string issSam = Model.IssuerSam;
+                        // ใช้ IssuerSam ถ้า Issue แล้ว ไม่งั้น fallback ไป PreAssigned
+                        string issSam = !string.IsNullOrEmpty(Model.IssuerSam)
+                        ? Model.IssuerSam
+                        : Model.PreAssignedIssuerSam ?? "";
                     }
                     <div class="col-3">
                         <div id="box-iss" class="border rounded p-2 @(issSigned ? "border-success border-2" : "")" style="min-height:90px;">
@@ -247,12 +256,25 @@
                                 <div style="height:42px;"></div>
                             }
 
-                            <div class="small fw-semibold">@Model.IssuerName</div>
+                            <div class="small fw-semibold">
+                                @(string.IsNullOrEmpty(Model.IssuerName)
+                                                                ? Model.PreAssignedIssuerSam
+                                                                : Model.IssuerName)
+                            </div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.IssuerTitle</div>
                             @if (Model.IssuedDate.HasValue)
                             {
                                 <div class="text-muted" style="font-size:.65rem;">
                                     @Model.IssuedDate.Value.ToString("dd/MM/yy HH:mm")
+                                </div>
+                            }
+                            @if (!issSigned && !string.IsNullOrEmpty(Model.PreAssignedIssuerSam))
+                            {
+                                <div class="mt-1">
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle"
+                                          style="font-size:.65rem;">
+                                        <i class="bi bi-hourglass-split me-1"></i>Pending
+                                    </span>
                                 </div>
                             }
                         </div>
@@ -264,9 +286,17 @@
                         var authTitle = !string.IsNullOrEmpty(Model.Approver2Title) ? Model.Approver2Title : Model.Approver1Title ?? "";
                         var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage) ? Model.Approver2SignatureImage : Model.Approver1SignatureImage ?? "";
                         var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
-                        var authSam = !string.IsNullOrEmpty(Model.Approver2Sam) ? Model.Approver2Sam : Model.Approver1Sam ?? "";
                         var authDate = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
+
+                        // ใช้ sam จริงถ้า Approve แล้ว ไม่งั้น fallback ไป PreAssigned
+                        var authSamActual = !string.IsNullOrEmpty(Model.Approver2Sam) ? Model.Approver2Sam
+                        : !string.IsNullOrEmpty(Model.Approver1Sam) ? Model.Approver1Sam
+                        : Model.PreAssignedApprover1Sam ?? "";
+
+                        // ชื่อที่แสดง: ถ้ายังไม่ Approve ใช้ PreAssigned SAM แทน
+                        var authDisplayName = !string.IsNullOrEmpty(authName) ? authName
+                        : Model.PreAssignedApprover1Sam ?? "";
                     }
                     <div class="col-3">
                         <div id="box-auth" class="border rounded p-2 @(authSigned ? "border-success border-2" : "")" style="min-height:90px;">
@@ -277,9 +307,9 @@
                                 <img src="data:image/png;base64,@authImg"
                                      alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
                             }
-                            else if (!string.IsNullOrEmpty(authSam))
+                            else if (!string.IsNullOrEmpty(authSamActual))
                             {
-                                <div id="sig-img-auth" class="sig-lazy" data-sam="@authSam"
+                                <div id="sig-img-auth" class="sig-lazy" data-sam="@authSamActual"
                                      style="min-height:42px;display:flex;align-items:center;justify-content:center;">
                                     <span class="text-muted" style="font-size:.7rem;">
                                         <i class="bi bi-arrow-repeat spin me-1"></i>loading...
@@ -298,12 +328,21 @@
                                 <div style="height:42px;"></div>
                             }
 
-                            <div class="small fw-semibold">@authName</div>
+                            <div class="small fw-semibold">@authDisplayName</div>
                             <div class="text-muted" style="font-size:.7rem;">@authTitle</div>
                             @if (authDate.HasValue)
                             {
                                 <div class="text-muted" style="font-size:.65rem;">
                                     @authDate.Value.ToString("dd/MM/yy HH:mm")
+                                </div>
+                            }
+                            @if (!authSigned && !string.IsNullOrEmpty(Model.PreAssignedApprover1Sam))
+                            {
+                                <div class="mt-1">
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle"
+                                          style="font-size:.65rem;">
+                                        <i class="bi bi-hourglass-split me-1"></i>Pending
+                                    </span>
                                 </div>
                             }
                         </div>
