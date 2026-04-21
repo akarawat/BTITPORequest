@@ -163,11 +163,20 @@ namespace BTITPORequest.Services
         }
 
         public async Task<bool> SubmitPOAsync(int poId, string userSam,
+            string requesterName, string requesterTitle,
             string signatureBase64, string signatureImageBase64)
         {
             using var conn = _db.GetBTITReqConnection();
             var rows = await conn.ExecuteAsync("ITPO_sp_SubmitPO",
-                new { POId = poId, UserSam = userSam, SignatureBase64 = signatureBase64, SignatureImageBase64 = signatureImageBase64, ToStatus = (int)POStatus.Requested },
+                new
+                {
+                    POId = poId, UserSam = userSam,
+                    RequesterName = requesterName,
+                    RequesterTitle = requesterTitle,
+                    SignatureBase64 = signatureBase64,
+                    SignatureImageBase64 = signatureImageBase64,
+                    ToStatus = (int)POStatus.Requested
+                },
                 commandType: CommandType.StoredProcedure);
             return rows > 0;
         }

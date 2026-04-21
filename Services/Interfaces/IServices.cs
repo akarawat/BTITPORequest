@@ -27,6 +27,7 @@ namespace BTITPORequest.Services.Interfaces
         Task<List<PORequestModel>> GetPOListAsync(
             string? userSam, bool isAdmin, DateTime? dateFrom, DateTime? dateTo, string? status);
         Task<bool> SubmitPOAsync(int poId, string userSam,
+            string requesterName, string requesterTitle,
             string signatureBase64, string signatureImageBase64);
         Task<bool> IssuePOAsync(int poId, string issuerSam, string issuerName, string issuerTitle,
             string signatureBase64, string signatureImageBase64);

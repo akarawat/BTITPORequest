@@ -131,19 +131,17 @@ namespace BTITPORequest.Services
             }
             doc.Add(tbl);
 
-            // ── Totals ────────────────────────────────────────
-            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 20, 10 })).UseAllAvailableWidth().SetMarginBottom(4);
+            // ── Totals — จัดให้ตรงกับ column Amount (14%) ────────
+            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 71, 15, 14 })).UseAllAvailableWidth().SetMarginBottom(4);
             void TotalRow(string label, string val, bool bold = false)
             {
                 totals.AddCell(new Cell().SetBorder(Border.NO_BORDER));
                 var f = bold ? fontB : fontR;
-                // Label column (ชิดขวา)
                 var labelCell = new Cell().SetBorder(Border.NO_BORDER)
                     .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
-                    .SetTextAlignment(TextAlignment.RIGHT);
+                    .SetTextAlignment(TextAlignment.RIGHT).SetPaddingRight(4);
                 labelCell.Add(new Paragraph(label).SetFont(f).SetFontSize(9));
                 totals.AddCell(labelCell);
-                // Value column (ชิดขวา)
                 var valCell = new Cell().SetBorder(Border.NO_BORDER)
                     .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
                     .SetTextAlignment(TextAlignment.RIGHT);
@@ -339,8 +337,8 @@ namespace BTITPORequest.Services
             }
             doc.Add(tbl);
 
-            // ── Totals ────────────────────────────────────────
-            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 20, 10 }))
+            // ── Totals — จัดให้ตรงกับ column Amount (14%) ────────
+            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 71, 15, 14 }))
                 .UseAllAvailableWidth().SetMarginBottom(4);
             void TotalRow(string label, string val, bool bold = false)
             {
@@ -348,7 +346,7 @@ namespace BTITPORequest.Services
                 var f = bold ? fontB : fontR;
                 var labelCell = new Cell().SetBorder(Border.NO_BORDER)
                     .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
-                    .SetTextAlignment(TextAlignment.RIGHT);
+                    .SetTextAlignment(TextAlignment.RIGHT).SetPaddingRight(4);
                 labelCell.Add(new Paragraph(label).SetFont(f).SetFontSize(9));
                 totals.AddCell(labelCell);
                 var valCell = new Cell().SetBorder(Border.NO_BORDER)

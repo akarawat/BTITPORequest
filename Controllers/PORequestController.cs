@@ -381,8 +381,10 @@ namespace BTITPORequest.Controllers
             var signResult = await _signService.SignDataAsync(
                 poNumber, "Requested", user.SamAcc, user.FullName, user.Department);
             var sigImage = await GetOrFetchSignatureAsync(user);
+            var title = user.Department;
 
             await _poService.SubmitPOAsync(poId, user.SamAcc,
+                user.FullName, title,
                 signResult?.SignatureBase64 ?? "", sigImage);
 
             // แจ้ง Issuer
