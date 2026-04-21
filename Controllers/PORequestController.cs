@@ -279,20 +279,6 @@ namespace BTITPORequest.Controllers
             return RedirectToAction("Detail", new { id });
         }
 
-        // ── DOWNLOAD PDF (Digital — full with header/footer) ──
-        [HttpGet]
-        public async Task<IActionResult> DownloadPdf(int id)
-        {
-            var po = await _poService.GetPOByIdAsync(id);
-            if (po == null) return NotFound();
-            if (po.Status != POStatus.Completed)
-                return BadRequest("PDF is only available for completed POs.");
-
-            var user     = CurrentUser;
-            var pdfBytes = await _pdfService.GeneratePOPdfAsync(po, user.SamAcc, user.FullName);
-            return File(pdfBytes, "application/pdf", $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}.pdf");
-        }
-
         // ── PRINT PDF (Blank Form — content only, no header/footer) ──
         [HttpGet]
         public async Task<IActionResult> PrintPdf(int id)
@@ -302,8 +288,91 @@ namespace BTITPORequest.Controllers
             if (po.Status != POStatus.Completed)
                 return BadRequest("PDF is only available for completed POs.");
 
+            // ── Fetch signature images ที่ขาดหายไปจาก DB ────────
+            // เหมือน lazy-fetch ใน Detail.cshtml แต่ทำ server-side ก่อน generate PDF
+            po = await FillMissingSignatureImagesAsync(po);
+
             var pdfBytes = await _pdfService.GeneratePOPdfForPrintAsync(po);
-            return File(pdfBytes, "application/pdf", $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}_print.pdf");
+            return File(pdfBytes, "application/pdf",
+                $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}_print.pdf");
+        }
+
+        // ── DOWNLOAD PDF (Digital — full with header/footer + digital sign) ──
+        [HttpGet]
+        public async Task<IActionResult> DownloadPdf(int id)
+        {
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            if (po.Status != POStatus.Completed)
+                return BadRequest("PDF is only available for completed POs.");
+
+            // Fetch missing signatures ก่อน generate
+            po = await FillMissingSignatureImagesAsync(po);
+
+            var user     = CurrentUser;
+            var pdfBytes = await _pdfService.GeneratePOPdfAsync(po, user.SamAcc, user.FullName);
+            return File(pdfBytes, "application/pdf",
+                $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}.pdf");
+        }
+
+        // ── PRIVATE: Fetch missing signature images from bt_digitalsign ──────
+        /// <summary>
+        /// สำหรับแต่ละช่อง (Requester/Issuer/Approver1/Approver2)
+        /// ถ้า SignatureImage ว่างใน DB แต่มี SamAcc → fetch จาก API แทน
+        /// เหมือน lazy-fetch ใน Detail.cshtml แต่ทำ server-side
+        /// </summary>
+        private async Task<PORequestModel> FillMissingSignatureImagesAsync(PORequestModel po)
+        {
+            var tasks = new List<Task>();
+
+            // Requester
+            if (string.IsNullOrEmpty(po.RequesterSignatureImage)
+                && !string.IsNullOrEmpty(po.RequesterSam))
+                tasks.Add(Task.Run(async () =>
+                    po.RequesterSignatureImage =
+                        await FetchSigSafe(po.RequesterSam) ?? string.Empty));
+
+            // Issuer
+            if (string.IsNullOrEmpty(po.IssuerSignatureImage)
+                && !string.IsNullOrEmpty(po.IssuerSam))
+                tasks.Add(Task.Run(async () =>
+                    po.IssuerSignatureImage =
+                        await FetchSigSafe(po.IssuerSam) ?? string.Empty));
+
+            // Approver1 (used as Authorized in single-level flow)
+            if (string.IsNullOrEmpty(po.Approver1SignatureImage)
+                && !string.IsNullOrEmpty(po.Approver1Sam))
+                tasks.Add(Task.Run(async () =>
+                    po.Approver1SignatureImage =
+                        await FetchSigSafe(po.Approver1Sam) ?? string.Empty));
+
+            // Approver2 (ถ้ามี)
+            if (string.IsNullOrEmpty(po.Approver2SignatureImage)
+                && !string.IsNullOrEmpty(po.Approver2Sam))
+                tasks.Add(Task.Run(async () =>
+                    po.Approver2SignatureImage =
+                        await FetchSigSafe(po.Approver2Sam) ?? string.Empty));
+
+            if (tasks.Count > 0)
+            {
+                try { await Task.WhenAll(tasks); }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "FillMissingSignatureImagesAsync partial failure for PO {id}", po.POId);
+                }
+            }
+
+            return po;
+        }
+
+        private async Task<string?> FetchSigSafe(string samAcc)
+        {
+            try { return await _signService.GetSignatureImageAsync(samAcc); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "FetchSigSafe failed for {sam}", samAcc);
+                return null;
+            }
         }
 
         // ── PRIVATE: Do Submit → notify Issuer ───────────────
