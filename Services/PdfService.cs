@@ -132,16 +132,23 @@ namespace BTITPORequest.Services
             doc.Add(tbl);
 
             // ── Totals ────────────────────────────────────────
-            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 30 })).UseAllAvailableWidth().SetMarginBottom(4);
+            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 20, 10 })).UseAllAvailableWidth().SetMarginBottom(4);
             void TotalRow(string label, string val, bool bold = false)
             {
                 totals.AddCell(new Cell().SetBorder(Border.NO_BORDER));
                 var f = bold ? fontB : fontR;
-                var c = new Cell().SetBorder(Border.NO_BORDER).SetBorderTop(new SolidBorder(ColorBorder, 0.5f));
-                c.Add(new Paragraph().SetFont(fontR).SetFontSize(9)
-                    .Add(new Text(label + "  "))
-                    .Add(new Text(val).SetFont(f)));
-                totals.AddCell(c);
+                // Label column (ชิดขวา)
+                var labelCell = new Cell().SetBorder(Border.NO_BORDER)
+                    .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
+                    .SetTextAlignment(TextAlignment.RIGHT);
+                labelCell.Add(new Paragraph(label).SetFont(f).SetFontSize(9));
+                totals.AddCell(labelCell);
+                // Value column (ชิดขวา)
+                var valCell = new Cell().SetBorder(Border.NO_BORDER)
+                    .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
+                    .SetTextAlignment(TextAlignment.RIGHT);
+                valCell.Add(new Paragraph(val).SetFont(f).SetFontSize(9));
+                totals.AddCell(valCell);
             }
             TotalRow("Total", po.Total.ToString("N2"));
             TotalRow($"Vat {po.VatPercent:0}%", po.VatAmount.ToString("N2"));
@@ -204,10 +211,10 @@ namespace BTITPORequest.Services
                 po.RequesterSignatureBase64, po.RequesterSignatureImage);
             SigCell("Issued:", po.IssuerName, po.IssuerTitle,
                 po.IssuerSignatureBase64, po.IssuerSignatureImage);
-            SigCell("Authorized:", po.Approver2Name ?? po.Approver1Name ?? "",
-                po.Approver2Title ?? po.Approver1Title ?? "",
-                po.Approver2SignatureBase64 ?? po.Approver1SignatureBase64 ?? "",
-                po.Approver2SignatureImage ?? po.Approver1SignatureImage ?? "");
+            SigCell("Authorized:", !string.IsNullOrEmpty(po.Approver2Name) ? po.Approver2Name : po.Approver1Name ?? "",
+                !string.IsNullOrEmpty(po.Approver2Title) ? po.Approver2Title : po.Approver1Title ?? "",
+                !string.IsNullOrEmpty(po.Approver2SignatureBase64) ? po.Approver2SignatureBase64 : po.Approver1SignatureBase64 ?? "",
+                !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "");
 
             doc.Add(sigTable);
 
@@ -270,10 +277,32 @@ namespace BTITPORequest.Services
             LabelVal("Company:", po.VendorCompany);
             LabelVal("Address:", po.VendorAddress);
 
-            if (!string.IsNullOrEmpty(po.VendorTel) || !string.IsNullOrEmpty(po.VendorFax))
-                LabelVal("Tel No.:", po.VendorTel + "     Fax No.:  " + po.VendorFax);
+            if (!string.IsNullOrEmpty(po.VendorTel) || !string.IsNullOrEmpty(po.VendorFax) || !string.IsNullOrEmpty(po.VendorEmail))
+            {
+                // Tel / Fax / Email บรรทัดเดียวกัน
+                var contactTable = new Table(UnitValue.CreatePercentArray(new float[] { 34, 33, 33 }))
+                    .UseAllAvailableWidth().SetMarginBottom(2);
 
-            if (!string.IsNullOrEmpty(po.VendorEmail)) LabelVal("E-mail:", po.VendorEmail);
+                var telCell = new Cell().SetBorder(Border.NO_BORDER);
+                telCell.Add(new Paragraph().SetFont(fontR).SetFontSize(9)
+                    .Add(new Text("Tel No.:  ").SetFont(fontB))
+                    .Add(new Text(po.VendorTel ?? "")));
+                contactTable.AddCell(telCell);
+
+                var faxCell = new Cell().SetBorder(Border.NO_BORDER);
+                faxCell.Add(new Paragraph().SetFont(fontR).SetFontSize(9)
+                    .Add(new Text("Fax No.:  ").SetFont(fontB))
+                    .Add(new Text(po.VendorFax ?? "")));
+                contactTable.AddCell(faxCell);
+
+                var emailCell = new Cell().SetBorder(Border.NO_BORDER);
+                emailCell.Add(new Paragraph().SetFont(fontR).SetFontSize(9)
+                    .Add(new Text("E-mail:  ").SetFont(fontB))
+                    .Add(new Text(po.VendorEmail ?? "")));
+                contactTable.AddCell(emailCell);
+
+                doc.Add(contactTable);
+            }
             if (!string.IsNullOrEmpty(po.RefNo))       LabelVal("Ref.:", po.RefNo);
             doc.Add(new Paragraph($"Subject:  {po.Subject}").SetFont(fontR).SetFontSize(9).SetMarginBottom(8));
 
@@ -311,17 +340,22 @@ namespace BTITPORequest.Services
             doc.Add(tbl);
 
             // ── Totals ────────────────────────────────────────
-            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 30 }))
+            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 20, 10 }))
                 .UseAllAvailableWidth().SetMarginBottom(4);
             void TotalRow(string label, string val, bool bold = false)
             {
                 totals.AddCell(new Cell().SetBorder(Border.NO_BORDER));
-                var c = new Cell().SetBorder(Border.NO_BORDER)
-                    .SetBorderTop(new SolidBorder(ColorBorder, 0.5f));
-                c.Add(new Paragraph().SetFont(fontR).SetFontSize(9)
-                    .Add(new Text(label + "  "))
-                    .Add(new Text(val).SetFont(bold ? fontB : fontR)));
-                totals.AddCell(c);
+                var f = bold ? fontB : fontR;
+                var labelCell = new Cell().SetBorder(Border.NO_BORDER)
+                    .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
+                    .SetTextAlignment(TextAlignment.RIGHT);
+                labelCell.Add(new Paragraph(label).SetFont(f).SetFontSize(9));
+                totals.AddCell(labelCell);
+                var valCell = new Cell().SetBorder(Border.NO_BORDER)
+                    .SetBorderTop(new SolidBorder(ColorBorder, 0.5f))
+                    .SetTextAlignment(TextAlignment.RIGHT);
+                valCell.Add(new Paragraph(val).SetFont(f).SetFontSize(9));
+                totals.AddCell(valCell);
             }
             TotalRow("Total", po.Total.ToString("N2"));
             TotalRow($"Vat {po.VatPercent:0}%", po.VatAmount.ToString("N2"));
@@ -390,9 +424,9 @@ namespace BTITPORequest.Services
             SigCellPrint("For Supplier\nSign & Feedback", "", "", "");
             SigCellPrint("Requested:", po.RequesterName, po.RequesterTitle, po.RequesterSignatureImage);
             SigCellPrint("Issued:", po.IssuerName, po.IssuerTitle, po.IssuerSignatureImage);
-            SigCellPrint("Authorized:", po.Approver2Name ?? po.Approver1Name ?? "",
-                po.Approver2Title ?? po.Approver1Title ?? "",
-                po.Approver2SignatureImage ?? po.Approver1SignatureImage ?? "");
+            SigCellPrint("Authorized:", !string.IsNullOrEmpty(po.Approver2Name) ? po.Approver2Name : po.Approver1Name ?? "",
+                !string.IsNullOrEmpty(po.Approver2Title) ? po.Approver2Title : po.Approver1Title ?? "",
+                !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "");
 
             doc.Add(sigTable);
             doc.Close();
