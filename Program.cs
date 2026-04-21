@@ -1,3 +1,4 @@
+using BTITPORequest.Controllers;
 using BTITPORequest.Data;
 using BTITPORequest.Services;
 using BTITPORequest.Services.Interfaces;
@@ -43,6 +44,7 @@ builder.Services.AddScoped<IDigitalSignService, DigitalSignService>(); // ต้
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPOService, POService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
+builder.Services.AddScoped<SendMailController>();  // Email notification service
 builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();

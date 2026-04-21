@@ -221,7 +221,7 @@
                     @* Issued *@
                     @{
                         bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
-                        // ใช้ IssuerSam ถ้า Issue แล้ว ไม่งั้น fallback ไป PreAssigned
+                        bool issPending = !issSigned && !string.IsNullOrEmpty(Model.PreAssignedIssuerSam);
                         string issSam = !string.IsNullOrEmpty(Model.IssuerSam)
                         ? Model.IssuerSam
                         : Model.PreAssignedIssuerSam ?? "";
@@ -230,29 +230,33 @@
                         <div id="box-iss" class="border rounded p-2 @(issSigned ? "border-success border-2" : "")" style="min-height:90px;">
                             <div class="small fw-semibold text-muted mb-1">Issued:</div>
 
-                            @if (!string.IsNullOrEmpty(Model.IssuerSignatureImage))
+                            @if (issSigned)
                             {
-                                <img src="data:image/png;base64,@Model.IssuerSignatureImage"
-                                     alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
-                            }
-                            else if (!string.IsNullOrEmpty(issSam))
-                            {
-                                <div id="sig-img-iss" class="sig-lazy" data-sam="@issSam"
-                                     style="min-height:42px;display:flex;align-items:center;justify-content:center;">
-                                    <span class="text-muted" style="font-size:.7rem;">
-                                        <i class="bi bi-arrow-repeat spin me-1"></i>loading...
-                                    </span>
-                                </div>
-                            }
-                            else if (issSigned)
-                            {
-                                <div class="text-success small mb-1">
-                                    <i class="bi bi-patch-check-fill"></i> Digitally Signed
-                                </div>
+                                @* Approved แล้ว — แสดงรูปลายเซ็น *@
+                                @if (!string.IsNullOrEmpty(Model.IssuerSignatureImage))
+                                {
+                                    <img src="data:image/png;base64,@Model.IssuerSignatureImage"
+                                         alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
+                                }
+                                else if (!string.IsNullOrEmpty(Model.IssuerSam))
+                                {
+                                    <div id="sig-img-iss" class="sig-lazy" data-sam="@Model.IssuerSam"
+                                         style="min-height:42px;display:flex;align-items:center;justify-content:center;">
+                                        <span class="text-muted" style="font-size:.7rem;">
+                                            <i class="bi bi-arrow-repeat spin me-1"></i>loading...
+                                        </span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-success small mb-1">
+                                        <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                    </div>
+                                }
                             }
                             else
                             {
-
+                                @* ยัง Pending — ซ่อนลายเซ็น แสดงแค่ช่องว่าง *@
                                 <div style="height:42px;"></div>
                             }
 
@@ -261,6 +265,12 @@
                                                                 ? Model.PreAssignedIssuerSam
                                                                 : Model.IssuerName)
                             </div>
+                            @if (!string.IsNullOrEmpty(issSam))
+                            {
+                                <div class="text-muted" style="font-size:.65rem;">
+                                    <i class="bi bi-person-badge me-1"></i>@issSam
+                                </div>
+                            }
                             <div class="text-muted" style="font-size:.7rem;">@Model.IssuerTitle</div>
                             @if (Model.IssuedDate.HasValue)
                             {
@@ -268,7 +278,7 @@
                                     @Model.IssuedDate.Value.ToString("dd/MM/yy HH:mm")
                                 </div>
                             }
-                            @if (!issSigned && !string.IsNullOrEmpty(Model.PreAssignedIssuerSam))
+                            @if (issPending)
                             {
                                 <div class="mt-1">
                                     <span class="badge bg-info-subtle text-info border border-info-subtle"
@@ -288,13 +298,14 @@
                         var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
                         var authDate = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
+                        bool authPending = !authSigned && !string.IsNullOrEmpty(Model.PreAssignedApprover1Sam);
 
-                        // ใช้ sam จริงถ้า Approve แล้ว ไม่งั้น fallback ไป PreAssigned
+                        // sam จริงถ้า Approve แล้ว ไม่งั้น fallback ไป PreAssigned
                         var authSamActual = !string.IsNullOrEmpty(Model.Approver2Sam) ? Model.Approver2Sam
                         : !string.IsNullOrEmpty(Model.Approver1Sam) ? Model.Approver1Sam
                         : Model.PreAssignedApprover1Sam ?? "";
 
-                        // ชื่อที่แสดง: ถ้ายังไม่ Approve ใช้ PreAssigned SAM แทน
+                        // ชื่อที่แสดง
                         var authDisplayName = !string.IsNullOrEmpty(authName) ? authName
                         : Model.PreAssignedApprover1Sam ?? "";
                     }
@@ -302,33 +313,43 @@
                         <div id="box-auth" class="border rounded p-2 @(authSigned ? "border-success border-2" : "")" style="min-height:90px;">
                             <div class="small fw-semibold text-muted mb-1">Authorized:</div>
 
-                            @if (!string.IsNullOrEmpty(authImg))
+                            @if (authSigned)
                             {
-                                <img src="data:image/png;base64,@authImg"
-                                     alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
-                            }
-                            else if (!string.IsNullOrEmpty(authSamActual))
-                            {
-                                <div id="sig-img-auth" class="sig-lazy" data-sam="@authSamActual"
-                                     style="min-height:42px;display:flex;align-items:center;justify-content:center;">
-                                    <span class="text-muted" style="font-size:.7rem;">
-                                        <i class="bi bi-arrow-repeat spin me-1"></i>loading...
-                                    </span>
-                                </div>
-                            }
-                            else if (authSigned)
-                            {
-                                <div class="text-success small mb-1">
-                                    <i class="bi bi-patch-check-fill"></i> Digitally Signed
-                                </div>
+                                @* Approved แล้ว — แสดงรูปลายเซ็น *@
+                                @if (!string.IsNullOrEmpty(authImg))
+                                {
+                                    <img src="data:image/png;base64,@authImg"
+                                         alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
+                                }
+                                else if (!string.IsNullOrEmpty(authSamActual))
+                                {
+                                    <div id="sig-img-auth" class="sig-lazy" data-sam="@authSamActual"
+                                         style="min-height:42px;display:flex;align-items:center;justify-content:center;">
+                                        <span class="text-muted" style="font-size:.7rem;">
+                                            <i class="bi bi-arrow-repeat spin me-1"></i>loading...
+                                        </span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-success small mb-1">
+                                        <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                    </div>
+                                }
                             }
                             else
                             {
-
+                                @* ยัง Pending — ซ่อนลายเซ็น แสดงแค่ช่องว่าง *@
                                 <div style="height:42px;"></div>
                             }
 
                             <div class="small fw-semibold">@authDisplayName</div>
+                            @if (!string.IsNullOrEmpty(authSamActual))
+                            {
+                                <div class="text-muted" style="font-size:.65rem;">
+                                    <i class="bi bi-person-badge me-1"></i>@authSamActual
+                                </div>
+                            }
                             <div class="text-muted" style="font-size:.7rem;">@authTitle</div>
                             @if (authDate.HasValue)
                             {
@@ -336,7 +357,7 @@
                                     @authDate.Value.ToString("dd/MM/yy HH:mm")
                                 </div>
                             }
-                            @if (!authSigned && !string.IsNullOrEmpty(Model.PreAssignedApprover1Sam))
+                            @if (authPending)
                             {
                                 <div class="mt-1">
                                     <span class="badge bg-warning-subtle text-warning border border-warning-subtle"

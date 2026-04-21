@@ -13,18 +13,21 @@ namespace BTITPORequest.Controllers
         private readonly IPOService _poService;
         private readonly IDigitalSignService _signService;
         private readonly IPdfService _pdfService;
+        private readonly SendMailController _mail;
         private readonly ILogger<PORequestController> _logger;
 
         public PORequestController(
             IPOService poService,
             IDigitalSignService signService,
             IPdfService pdfService,
+            SendMailController mail,
             ILogger<PORequestController> logger)
         {
-            _poService = poService;
+            _poService   = poService;
             _signService = signService;
-            _pdfService = pdfService;
-            _logger = logger;
+            _pdfService  = pdfService;
+            _mail        = mail;
+            _logger      = logger;
         }
 
         // ── Helpers ───────────────────────────────────────────
@@ -38,21 +41,26 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Index(
             string? status, string? search, DateTime? dateFrom, DateTime? dateTo)
         {
-            var user = CurrentUser;
+            var user    = CurrentUser;
             bool isAdmin = user.Role is "Admin";
-            var list = await _poService.GetPOListAsync(user.SamAcc, isAdmin, dateFrom, dateTo, status);
+            var list    = await _poService.GetPOListAsync(user.SamAcc, isAdmin, dateFrom, dateTo, status);
 
             if (!string.IsNullOrWhiteSpace(search))
                 list = list.Where(p =>
-                    p.PONumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    p.PONumber.Contains(search, StringComparison.OrdinalIgnoreCase)     ||
                     p.VendorCompany.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     p.Subject.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
             return View(new POListViewModel
             {
-                POList = list, FilterStatus = status, SearchText = search,
-                DateFrom = dateFrom, DateTo = dateTo,
-                TotalCount = list.Count, CurrentUserSam = user.SamAcc, IsAdmin = isAdmin
+                POList       = list,
+                FilterStatus = status,
+                SearchText   = search,
+                DateFrom     = dateFrom,
+                DateTo       = dateTo,
+                TotalCount   = list.Count,
+                CurrentUserSam = user.SamAcc,
+                IsAdmin      = isAdmin
             });
         }
 
@@ -60,17 +68,16 @@ namespace BTITPORequest.Controllers
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            var user = CurrentUser;
-            var issuers   = await _poService.GetUsersByRoleAsync("Issuer");
+            var user     = CurrentUser;
+            var issuers  = await _poService.GetUsersByRoleAsync("Issuer");
             var approvers = await _poService.GetUsersByRoleAsync("Approver");
-
             return View(new POCreateViewModel
             {
-                PO = new PORequestModel { PODate = DateTime.Today },
+                PO              = new PORequestModel { PODate = DateTime.Today },
                 CurrentUserSam  = user.SamAcc,
                 CurrentUserName = user.FullName,
-                Issuers   = issuers,
-                Approvers = approvers
+                Issuers         = issuers,
+                Approvers       = approvers
             });
         }
 
@@ -81,9 +88,9 @@ namespace BTITPORequest.Controllers
             [FromForm] string selectedIssuerSam    = "",
             [FromForm] string selectedApprover1Sam = "",
             [FromForm] string selectedApprover2Sam = "",
-            [FromForm] bool submitNow = false)
+            [FromForm] bool   submitNow = false)
         {
-            var user = CurrentUser;
+            var user      = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
             if (lineItems.Count == 0)
             {
@@ -94,7 +101,7 @@ namespace BTITPORequest.Controllers
                 {
                     PO = po, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName,
                     Issuers = issuers, Approvers = approvers,
-                    SelectedIssuerSam = selectedIssuerSam,
+                    SelectedIssuerSam    = selectedIssuerSam,
                     SelectedApprover1Sam = selectedApprover1Sam,
                     SelectedApprover2Sam = selectedApprover2Sam
                 });
@@ -103,8 +110,7 @@ namespace BTITPORequest.Controllers
             var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc,
                 selectedIssuerSam, selectedApprover1Sam, selectedApprover2Sam);
 
-            if (submitNow)
-                await DoSubmitAsync(poId, po.PONumber, user);
+            if (submitNow) await DoSubmitAsync(poId, po.PONumber, user);
 
             TempData["Success"] = submitNow ? "PO submitted & signed successfully." : "PO saved as draft.";
             return RedirectToAction("Detail", new { id = poId });
@@ -115,11 +121,15 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Edit(int id)
         {
             var user = CurrentUser;
-            var po = await _poService.GetPOByIdAsync(id);
+            var po   = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
             if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
             if (po.Status != POStatus.Draft) return BadRequest("Only drafts can be edited.");
-            return View(new POCreateViewModel { PO = po, LineItems = po.LineItems, CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName });
+            return View(new POCreateViewModel
+            {
+                PO = po, LineItems = po.LineItems,
+                CurrentUserSam = user.SamAcc, CurrentUserName = user.FullName
+            });
         }
 
         [HttpPost][ValidateAntiForgeryToken]
@@ -128,14 +138,11 @@ namespace BTITPORequest.Controllers
             [FromForm] string lineItemsJson,
             [FromForm] bool submitNow = false)
         {
-            var user = CurrentUser;
+            var user      = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
             RecalcTotals(po, lineItems);
             await _poService.UpdatePOAsync(po, lineItems);
-
-            if (submitNow)
-                await DoSubmitAsync(po.POId, po.PONumber, user);
-
+            if (submitNow) await DoSubmitAsync(po.POId, po.PONumber, user);
             TempData["Success"] = submitNow ? "PO submitted & signed." : "PO updated.";
             return RedirectToAction("Detail", new { id = po.POId });
         }
@@ -145,27 +152,24 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Detail(int id)
         {
             var user = CurrentUser;
-            var po = await _poService.GetPOByIdAsync(id);
+            var po   = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
             po.CanEdit   = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
             po.CanSubmit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
 
-            // CanIssue: Issuer role + ถ้ามี PreAssigned ต้องเป็น person นั้น
             po.CanIssue = po.Status == POStatus.Requested
                 && (user.Role == "Admin"
                     || (user.Role == "Issuer"
                         && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
                             || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
 
-            // CanApprove1: Approver role + ถ้ามี PreAssigned ต้องเป็น person นั้น
             po.CanApprove1 = po.Status == POStatus.Issued
                 && (user.Role == "Admin"
                     || (user.Role == "Approver"
                         && (string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
                             || po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
 
-            // CanApprove2: ใช้ PreAssigned2 ถ้ามี ไม่งั้น fallback ไป PreAssigned1
             var preApp2 = !string.IsNullOrEmpty(po.PreAssignedApprover2Sam)
                           ? po.PreAssignedApprover2Sam : po.PreAssignedApprover1Sam;
             po.CanApprove2 = po.Status == POStatus.Authorized
@@ -174,8 +178,8 @@ namespace BTITPORequest.Controllers
                         && (string.IsNullOrEmpty(preApp2)
                             || preApp2.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
 
-            po.CanDownloadPDF = po.Status == POStatus.Completed &&
-                (po.RequesterSam == user.SamAcc || user.Role == "Admin");
+            po.CanDownloadPDF = po.Status == POStatus.Completed
+                && (po.RequesterSam == user.SamAcc || user.Role == "Admin");
 
             return View(po);
         }
@@ -185,7 +189,7 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Submit(int id)
         {
             var user = CurrentUser;
-            var po = await _poService.GetPOByIdAsync(id);
+            var po   = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
             await DoSubmitAsync(id, po.PONumber, user);
             TempData["Success"] = "PO submitted & digitally signed.";
@@ -197,16 +201,33 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Issue(int id)
         {
             var user = CurrentUser;
-            var po = await _poService.GetPOByIdAsync(id);
+            var po   = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
             var signResult = await _signService.SignDataAsync(
                 po.PONumber, "Issued", user.SamAcc, user.FullName, user.Department);
+            var sigImage = await GetOrFetchSignatureAsync(user);
 
             await _poService.IssuePOAsync(id,
                 user.SamAcc, user.FullName, user.Department,
-                signResult?.SignatureBase64 ?? "",
-                user.SignatureImageBase64);
+                signResult?.SignatureBase64 ?? "", sigImage);
+
+            // แจ้ง Approver
+            if (!string.IsNullOrEmpty(po.PreAssignedApprover1Sam))
+            {
+                var approvers = await _poService.GetUsersByRoleAsync("Approver");
+                var approver  = approvers.FirstOrDefault(a =>
+                    a.SamAcc.Equals(po.PreAssignedApprover1Sam, StringComparison.OrdinalIgnoreCase));
+                if (approver != null && !string.IsNullOrEmpty(approver.Email))
+                    _ = _mail.NotifyApproverAsync(approver.Email, po.PONumber, po.VendorCompany,
+                            po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
+            }
+
+            // แจ้ง Requester ว่า PO Issued แล้ว
+            var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+            if (!string.IsNullOrEmpty(reqEmail))
+                _ = _mail.NotifyRequesterIssuedAsync(reqEmail, po.PONumber, po.VendorCompany,
+                        po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
 
             TempData["Success"] = "PO issued & digitally signed.";
             return RedirectToAction("Detail", new { id });
@@ -225,25 +246,56 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Approve(int id, int level, string action, string? remark)
         {
             var user = CurrentUser;
-            var po = await _poService.GetPOByIdAsync(id);
+            var po   = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
             if (action == "approve")
             {
-                var purpose = level == 2 ? "Completed" : "Authorized";
+                var purpose    = level == 2 ? "Completed" : "Authorized";
                 var signResult = await _signService.SignDataAsync(
                     po.PONumber, purpose, user.SamAcc, user.FullName, user.Department, remark);
+                var sigImage = await GetOrFetchSignatureAsync(user);
 
                 await _poService.ApprovePOAsync(id, level,
                     user.SamAcc, user.FullName, user.Department,
-                    signResult?.SignatureBase64 ?? "",
-                    user.SignatureImageBase64, remark);
+                    signResult?.SignatureBase64 ?? "", sigImage, remark);
 
-                TempData["Success"] = level == 2 ? "PO fully approved! Document complete." : "PO approved — moving to final step.";
+                if (level == 2)
+                {
+                    // Completed → แจ้ง Requester
+                    var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+                    if (!string.IsNullOrEmpty(reqEmail))
+                        _ = _mail.NotifyCompletedAsync(reqEmail, po.PONumber, po.VendorCompany,
+                                po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
+                    TempData["Success"] = "PO fully approved! Document complete.";
+                }
+                else
+                {
+                    // Level 1 → แจ้ง Approver Level 2
+                    var preApp = !string.IsNullOrEmpty(po.PreAssignedApprover2Sam)
+                                 ? po.PreAssignedApprover2Sam : po.PreAssignedApprover1Sam;
+                    if (!string.IsNullOrEmpty(preApp))
+                    {
+                        var approvers = await _poService.GetUsersByRoleAsync("Approver");
+                        var approver2 = approvers.FirstOrDefault(a =>
+                            a.SamAcc.Equals(preApp, StringComparison.OrdinalIgnoreCase));
+                        if (approver2 != null && !string.IsNullOrEmpty(approver2.Email))
+                            _ = _mail.NotifyApproverAsync(approver2.Email, po.PONumber, po.VendorCompany,
+                                    po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
+                    }
+                    TempData["Success"] = "PO approved — moving to final step.";
+                }
             }
             else
             {
                 await _poService.RejectPOAsync(id, level, user.SamAcc, user.FullName, remark ?? "");
+
+                // แจ้ง Requester ว่าถูก Reject
+                var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+                if (!string.IsNullOrEmpty(reqEmail))
+                    _ = _mail.NotifyRejectedAsync(reqEmail, po.PONumber, po.VendorCompany,
+                            po.Subject, user.FullName, remark ?? "", id, level);
+
                 TempData["Warning"] = "PO rejected and returned for revision.";
             }
             return RedirectToAction("Detail", new { id });
@@ -254,40 +306,103 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> DownloadPdf(int id)
         {
             var user = CurrentUser;
-            var po = await _poService.GetPOByIdAsync(id);
+            var po   = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
             if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
-            if (po.Status != POStatus.Completed) return BadRequest("PDF is only available for completed POs.");
+            if (po.Status != POStatus.Completed)
+                return BadRequest("PDF is only available for completed POs.");
 
             var pdfBytes = await _pdfService.GeneratePOPdfAsync(po, user.SamAcc, user.FullName);
             return File(pdfBytes, "application/pdf", $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}.pdf");
         }
 
-        // ── PRIVATE: Do Submit ────────────────────────────────
+        // ── PRIVATE: Do Submit → notify Issuer ───────────────
         private async Task DoSubmitAsync(int poId, string poNumber, UserSessionModel user)
         {
             var signResult = await _signService.SignDataAsync(
                 poNumber, "Requested", user.SamAcc, user.FullName, user.Department);
+            var sigImage = await GetOrFetchSignatureAsync(user);
 
             await _poService.SubmitPOAsync(poId, user.SamAcc,
-                signResult?.SignatureBase64 ?? "",
-                user.SignatureImageBase64);
+                signResult?.SignatureBase64 ?? "", sigImage);
+
+            // แจ้ง Issuer
+            var po = await _poService.GetPOByIdAsync(poId);
+            if (po != null && !string.IsNullOrEmpty(po.PreAssignedIssuerSam))
+            {
+                var issuers = await _poService.GetUsersByRoleAsync("Issuer");
+                var issuer  = issuers.FirstOrDefault(i =>
+                    i.SamAcc.Equals(po.PreAssignedIssuerSam, StringComparison.OrdinalIgnoreCase));
+                if (issuer != null && !string.IsNullOrEmpty(issuer.Email))
+                    _ = _mail.NotifyIssuerAsync(issuer.Email, po.PONumber, po.VendorCompany,
+                            po.Subject, user.FullName, user.Department,
+                            po.GrandTotal.ToString("N2"), poId);
+            }
+        }
+
+        // ── PRIVATE: Signature image — session → API fallback ─
+        private async Task<string> GetOrFetchSignatureAsync(UserSessionModel user)
+        {
+            // 1. มีใน Session แล้ว → ใช้เลย
+            if (!string.IsNullOrEmpty(user.SignatureImageBase64))
+                return user.SignatureImageBase64;
+
+            // 2. ไม่มี → fetch ใหม่จาก bt_digitalsign API
+            try
+            {
+                var img = await _signService.GetSignatureImageAsync(user.SamAcc);
+                if (!string.IsNullOrEmpty(img))
+                {
+                    user.SignatureImageBase64 = img;
+                    SessionHelper.SetUser(HttpContext.Session, user);
+                }
+                return img ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetOrFetchSignatureAsync failed for {sam}", user.SamAcc);
+                return string.Empty;
+            }
+        }
+
+        // ── PRIVATE: Get email by samAcc from ITPO_UserRoles ──
+        // ใช้สำหรับส่ง email แจ้ง Requester
+        // (ถ้ามีใน UserRoles → ใช้ email นั้น ไม่งั้น fallback เป็น samAcc@domain)
+        private async Task<string> GetEmailBysamAccAsync(string samAcc)
+        {
+            if (string.IsNullOrEmpty(samAcc)) return string.Empty;
+            try
+            {
+                // ลอง Issuer + Approver list ก่อน
+                var allRoles = await _poService.GetUsersByRoleAsync("Issuer");
+                allRoles.AddRange(await _poService.GetUsersByRoleAsync("Approver"));
+                allRoles.AddRange(await _poService.GetUsersByRoleAsync("Admin"));
+
+                var found = allRoles.FirstOrDefault(u =>
+                    u.SamAcc.Equals(samAcc, StringComparison.OrdinalIgnoreCase));
+                if (found != null && !string.IsNullOrEmpty(found.Email))
+                    return found.Email;
+            }
+            catch { /* ignore */ }
+
+            // Fallback: samAcc@berninathailand.com
+            return $"{samAcc}@berninathailand.com";
         }
 
         // ── PRIVATE: Recalc Totals ────────────────────────────
         private static void RecalcTotals(PORequestModel po, List<POLineItemModel> items)
         {
-            po.Total = items.Sum(x => Math.Round(x.Quantity * x.UnitPrice, 2));
-            po.VatAmount = Math.Round(po.Total * po.VatPercent / 100, 2);
+            po.Total      = items.Sum(x => Math.Round(x.Quantity * x.UnitPrice, 2));
+            po.VatAmount  = Math.Round(po.Total * po.VatPercent / 100, 2);
             po.GrandTotal = po.Total + po.VatAmount;
             po.GrandTotalText = NumberToWords(po.GrandTotal);
         }
 
         private static string NumberToWords(decimal amount)
         {
-            var baht = (long)Math.Floor(amount);
+            var baht   = (long)Math.Floor(amount);
             var satang = (int)Math.Round((amount - baht) * 100);
-            var words = ToWords(baht) + " Baht";
+            var words  = ToWords(baht) + " Baht";
             if (satang > 0) words += $" and {ToWords(satang)} Satang";
             return words + " Only";
         }
@@ -299,9 +414,9 @@ namespace BTITPORequest.Controllers
                 "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
                 "Seventeen", "Eighteen", "Nineteen" };
             string[] tens = { "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety" };
-            if (n < 20) return ones[n];
+            if (n < 20)  return ones[n];
             if (n < 100) return tens[n / 10] + (n % 10 > 0 ? " " + ones[n % 10] : "");
-            if (n < 1000) return ones[n / 100] + " Hundred" + (n % 100 > 0 ? " " + ToWords(n % 100) : "");
+            if (n < 1000)      return ones[n / 100] + " Hundred"  + (n % 100 > 0 ? " " + ToWords(n % 100) : "");
             if (n < 1_000_000) return ToWords(n / 1000) + " Thousand" + (n % 1000 > 0 ? " " + ToWords(n % 1000) : "");
             if (n < 1_000_000_000) return ToWords(n / 1_000_000) + " Million" + (n % 1_000_000 > 0 ? " " + ToWords(n % 1_000_000) : "");
             return ToWords(n / 1_000_000_000) + " Billion" + (n % 1_000_000_000 > 0 ? " " + ToWords(n % 1_000_000_000) : "");
