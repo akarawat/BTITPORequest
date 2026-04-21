@@ -220,5 +220,183 @@ namespace BTITPORequest.Services
             doc.Close();
             return ms.ToArray();
         }
+
+        // ══════════════════════════════════════════════════════
+        // PRINT MODE — Content only, no header/footer
+        // สำหรับพิมพ์ลง Bernina Blank Form (letterhead กระดาษ)
+        // Margin: บน 2.5cm ล่าง 2.5cm ซ้าย 1.5cm ขวา 1cm
+        // ══════════════════════════════════════════════════════
+        public async Task<byte[]> GeneratePOPdfForPrintAsync(PORequestModel po)
+        {
+            await Task.CompletedTask;
+
+            using var ms = new MemoryStream();
+            var writer = new PdfWriter(ms);
+            var pdf    = new PdfDocument(writer);
+            var doc    = new Document(pdf, PageSize.A4);
+
+            // Margins: top=2.5cm, bottom=2.5cm, left=1.5cm, right=1cm
+            // 1 cm = 28.35 pt
+            doc.SetMargins(70.9f, 28.35f, 70.9f, 42.5f);
+
+            var fontR = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            var fontB = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+
+            // ── PO Number + Date ──────────────────────────────
+            var titleTable = new Table(UnitValue.CreatePercentArray(new float[] { 50, 50 }))
+                .UseAllAvailableWidth().SetMarginBottom(6);
+
+            var tL = new Cell().SetBorder(Border.NO_BORDER);
+            tL.Add(new Paragraph("PURCHASE ORDER No.").SetFont(fontB).SetFontSize(9));
+            tL.Add(new Paragraph(po.PONumber).SetFont(fontB).SetFontSize(14).SetFontColor(ColorHeader));
+            titleTable.AddCell(tL);
+
+            var tR = new Cell().SetBorder(Border.NO_BORDER).SetTextAlignment(TextAlignment.RIGHT);
+            tR.Add(new Paragraph($"Date:  {po.PODate:M/d/yyyy}").SetFont(fontR).SetFontSize(9));
+            if (!string.IsNullOrEmpty(po.InternalRefAC))
+                tR.Add(new Paragraph($"For BT. Internal Ref.: A/C   {po.InternalRefAC}").SetFont(fontR).SetFontSize(9));
+            if (!string.IsNullOrEmpty(po.CreditNo))
+                tR.Add(new Paragraph($"Credit No:  {po.CreditNo}").SetFont(fontR).SetFontSize(9));
+            titleTable.AddCell(tR);
+            doc.Add(titleTable);
+
+            // ── Vendor Info ───────────────────────────────────
+            void LabelVal(string label, string val) =>
+                doc.Add(new Paragraph().SetFont(fontR).SetFontSize(9).SetMarginBottom(2)
+                    .Add(new Text(label + "  ").SetFont(fontB))
+                    .Add(new Text(val)));
+
+            LabelVal("Attn:", po.VendorAttn);
+            LabelVal("Company:", po.VendorCompany);
+            LabelVal("Address:", po.VendorAddress);
+
+            if (!string.IsNullOrEmpty(po.VendorTel) || !string.IsNullOrEmpty(po.VendorFax))
+                LabelVal("Tel No.:", po.VendorTel + "     Fax No.:  " + po.VendorFax);
+
+            if (!string.IsNullOrEmpty(po.VendorEmail)) LabelVal("E-mail:", po.VendorEmail);
+            if (!string.IsNullOrEmpty(po.RefNo))       LabelVal("Ref.:", po.RefNo);
+            doc.Add(new Paragraph($"Subject:  {po.Subject}").SetFont(fontR).SetFontSize(9).SetMarginBottom(8));
+
+            // ── Line Items ────────────────────────────────────
+            var tbl = new Table(UnitValue.CreatePercentArray(new float[] { 5, 52, 14, 15, 14 }))
+                .UseAllAvailableWidth().SetMarginBottom(6);
+
+            void AddHeader(string h) =>
+                tbl.AddHeaderCell(new Cell().SetBackgroundColor(ColorHeader).SetBorder(Border.NO_BORDER)
+                    .Add(new Paragraph(h).SetFont(fontB).SetFontSize(8)
+                        .SetFontColor(ColorHeaderText).SetTextAlignment(TextAlignment.CENTER)));
+            AddHeader("#"); AddHeader("Description"); AddHeader("Quantity");
+            AddHeader("Unit Price"); AddHeader("Amount/Baht");
+
+            bool alt = false;
+            foreach (var item in po.LineItems)
+            {
+                var bg = alt ? ColorRowAlt : null;
+                void AddCell(string v, bool right = false)
+                {
+                    var c = new Cell().SetBorder(Border.NO_BORDER)
+                        .SetBorderBottom(new SolidBorder(ColorBorder, 0.5f));
+                    if (bg != null) c.SetBackgroundColor(bg);
+                    c.Add(new Paragraph(v).SetFont(fontR).SetFontSize(9)
+                        .SetTextAlignment(right ? TextAlignment.RIGHT : TextAlignment.LEFT));
+                    tbl.AddCell(c);
+                }
+                AddCell(item.LineNo.ToString());
+                AddCell(item.Description);
+                AddCell(item.Quantity.ToString("N3"), true);
+                AddCell(item.UnitPrice.ToString("N2"), true);
+                AddCell(item.Amount.ToString("N2"), true);
+                alt = !alt;
+            }
+            doc.Add(tbl);
+
+            // ── Totals ────────────────────────────────────────
+            var totals = new Table(UnitValue.CreatePercentArray(new float[] { 70, 30 }))
+                .UseAllAvailableWidth().SetMarginBottom(4);
+            void TotalRow(string label, string val, bool bold = false)
+            {
+                totals.AddCell(new Cell().SetBorder(Border.NO_BORDER));
+                var c = new Cell().SetBorder(Border.NO_BORDER)
+                    .SetBorderTop(new SolidBorder(ColorBorder, 0.5f));
+                c.Add(new Paragraph().SetFont(fontR).SetFontSize(9)
+                    .Add(new Text(label + "  "))
+                    .Add(new Text(val).SetFont(bold ? fontB : fontR)));
+                totals.AddCell(c);
+            }
+            TotalRow("Total", po.Total.ToString("N2"));
+            TotalRow($"Vat {po.VatPercent:0}%", po.VatAmount.ToString("N2"));
+            TotalRow("Grand total", po.GrandTotal.ToString("N2"), true);
+            doc.Add(totals);
+
+            doc.Add(new Paragraph($"( {po.GrandTotalText} )")
+                .SetFont(fontR).SetFontSize(9)
+                .SetTextAlignment(TextAlignment.CENTER).SetMarginBottom(8));
+
+            // ── Notes ─────────────────────────────────────────
+            if (!string.IsNullOrEmpty(po.Notes))
+            {
+                doc.Add(new Paragraph("NOTES:").SetFont(fontB).SetFontSize(9));
+                foreach (var line in po.Notes.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)))
+                    doc.Add(new Paragraph($"  {line.Trim()}").SetFont(fontR).SetFontSize(8).SetMarginBottom(1));
+            }
+
+            // ── Signature Section ─────────────────────────────
+            doc.Add(new Paragraph("\n"));
+            var sigTable = new Table(UnitValue.CreatePercentArray(new float[] { 25, 25, 25, 25 }))
+                .UseAllAvailableWidth().SetMarginTop(10);
+
+            void SigCellPrint(string role, string name, string titleStr, string sigImgBase64)
+            {
+                var cell = new Cell().SetBorder(Border.NO_BORDER)
+                    .SetTextAlignment(TextAlignment.CENTER).SetPaddingTop(4);
+
+                cell.Add(new Paragraph(role).SetFont(fontB).SetFontSize(8).SetMarginBottom(4));
+
+                if (!string.IsNullOrEmpty(sigImgBase64))
+                {
+                    try
+                    {
+                        var imgBytes = Convert.FromBase64String(sigImgBase64);
+                        var imgData  = iText.IO.Image.ImageDataFactory.Create(imgBytes);
+                        var img      = new Image(imgData)
+                            .SetWidth(90).SetHeight(36)
+                            .SetHorizontalAlignment(HorizontalAlignment.CENTER);
+                        cell.Add(img);
+                    }
+                    catch
+                    {
+                        cell.Add(new Paragraph("[ Signed ]").SetFont(fontR).SetFontSize(7)
+                            .SetFontColor(ColorSignedGreen));
+                    }
+                }
+                else
+                {
+                    // กรอบว่างสำหรับลงนาม
+                    cell.Add(new Paragraph("\n\n").SetFont(fontR).SetFontSize(9));
+                }
+
+                cell.Add(new LineSeparator(new iText.Kernel.Pdf.Canvas.Draw.DottedLine())
+                    .SetMarginTop(2).SetMarginBottom(3));
+                if (!string.IsNullOrEmpty(name))
+                {
+                    cell.Add(new Paragraph(name).SetFont(fontB).SetFontSize(8));
+                    if (!string.IsNullOrEmpty(titleStr))
+                        cell.Add(new Paragraph(titleStr).SetFont(fontR).SetFontSize(7)
+                            .SetFontColor(new DeviceRgb(0x55, 0x55, 0x55)));
+                }
+                sigTable.AddCell(cell);
+            }
+
+            SigCellPrint("For Supplier\nSign & Feedback", "", "", "");
+            SigCellPrint("Requested:", po.RequesterName, po.RequesterTitle, po.RequesterSignatureImage);
+            SigCellPrint("Issued:", po.IssuerName, po.IssuerTitle, po.IssuerSignatureImage);
+            SigCellPrint("Authorized:", po.Approver2Name ?? po.Approver1Name ?? "",
+                po.Approver2Title ?? po.Approver1Title ?? "",
+                po.Approver2SignatureImage ?? po.Approver1SignatureImage ?? "");
+
+            doc.Add(sigTable);
+            doc.Close();
+            return ms.ToArray();
+        }
     }
 }

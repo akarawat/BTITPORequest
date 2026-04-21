@@ -40,6 +40,9 @@
             <a asp-action="DownloadPdf" asp-route-id="@Model.POId" class="btn btn-success btn-sm">
                 <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
             </a>
+            <a asp-action="PrintPdf" asp-route-id="@Model.POId" class="btn btn-outline-secondary btn-sm" title="Print on Blank Form (no header/footer)">
+                <i class="bi bi-printer me-1"></i>Print (Blank Form)
+            </a>
         }
     </div>
 </div>
@@ -83,10 +86,8 @@
                     <tr><td class="fw-semibold py-1">Company:</td><td>@Model.VendorCompany</td></tr>
                     <tr><td class="fw-semibold py-1">Address:</td><td>@Model.VendorAddress</td></tr>
                     <tr>
-                        <td class="fw-semibold py-1">Tel No.:</td>
-                        <td>@Model.VendorTel</td>
-                        <td class="fw-semibold py-1">Fax No.:</td>
-                        <td>@Model.VendorFax</td>
+                        <td class="fw-semibold py-1">Tel No.:</td><td>@Model.VendorTel</td>
+                        <td class="fw-semibold py-1">Fax No.:</td><td>@Model.VendorFax</td>
                     </tr>
                     <tr><td class="fw-semibold py-1">E-mail:</td><td>@Model.VendorEmail</td></tr>
                     <tr><td class="fw-semibold py-1">Ref.:</td><td>@Model.RefNo</td></tr>
@@ -165,7 +166,7 @@
                     @* Supplier *@
                     <div class="col-3">
                         <div class="border rounded p-2 bg-light" style="min-height:90px;">
-                            <div class="small fw-semibold text-muted mb-2">For Supplier<br />Sign &amp; Feedback</div>
+                            <div class="small fw-semibold text-muted mb-2">For Supplier<br/>Sign &amp; Feedback</div>
                             <div style="height:38px;border:1px dashed #ccc;border-radius:4px;"></div>
                         </div>
                     </div>
@@ -173,7 +174,7 @@
                     @* Requested *@
                     @{
                         bool reqSigned = HasSigned(Model.RequesterSignatureBase64, Model.RequesterSignatureImage);
-                        string reqSam = Model.RequesterSam;
+                        string reqSam  = Model.RequesterSam;
                         bool reqHasStatus = Model.Status != POStatus.Draft;
                     }
                     <div class="col-3">
@@ -222,9 +223,9 @@
                     @{
                         bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
                         bool issPending = !issSigned && !string.IsNullOrEmpty(Model.PreAssignedIssuerSam);
-                        string issSam = !string.IsNullOrEmpty(Model.IssuerSam)
-                        ? Model.IssuerSam
-                        : Model.PreAssignedIssuerSam ?? "";
+                        string issSam  = !string.IsNullOrEmpty(Model.IssuerSam)
+                                         ? Model.IssuerSam
+                                         : Model.PreAssignedIssuerSam ?? "";
                     }
                     <div class="col-3">
                         <div id="box-iss" class="border rounded p-2 @(issSigned ? "border-success border-2" : "")" style="min-height:90px;">
@@ -262,8 +263,8 @@
 
                             <div class="small fw-semibold">
                                 @(string.IsNullOrEmpty(Model.IssuerName)
-                                                                ? Model.PreAssignedIssuerSam
-                                                                : Model.IssuerName)
+                                    ? Model.PreAssignedIssuerSam
+                                    : Model.IssuerName)
                             </div>
                             @if (!string.IsNullOrEmpty(issSam))
                             {
@@ -292,22 +293,22 @@
 
                     @* Authorized *@
                     @{
-                        var authName = !string.IsNullOrEmpty(Model.Approver2Name) ? Model.Approver2Name : Model.Approver1Name ?? "";
+                        var authName  = !string.IsNullOrEmpty(Model.Approver2Name)  ? Model.Approver2Name  : Model.Approver1Name  ?? "";
                         var authTitle = !string.IsNullOrEmpty(Model.Approver2Title) ? Model.Approver2Title : Model.Approver1Title ?? "";
-                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage) ? Model.Approver2SignatureImage : Model.Approver1SignatureImage ?? "";
-                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
-                        var authDate = Model.Approver2Date ?? Model.Approver1Date;
+                        var authImg   = !string.IsNullOrEmpty(Model.Approver2SignatureImage)  ? Model.Approver2SignatureImage  : Model.Approver1SignatureImage  ?? "";
+                        var authSig   = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
+                        var authDate  = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
                         bool authPending = !authSigned && !string.IsNullOrEmpty(Model.PreAssignedApprover1Sam);
 
                         // sam จริงถ้า Approve แล้ว ไม่งั้น fallback ไป PreAssigned
                         var authSamActual = !string.IsNullOrEmpty(Model.Approver2Sam) ? Model.Approver2Sam
-                        : !string.IsNullOrEmpty(Model.Approver1Sam) ? Model.Approver1Sam
-                        : Model.PreAssignedApprover1Sam ?? "";
+                                          : !string.IsNullOrEmpty(Model.Approver1Sam) ? Model.Approver1Sam
+                                          : Model.PreAssignedApprover1Sam ?? "";
 
                         // ชื่อที่แสดง
                         var authDisplayName = !string.IsNullOrEmpty(authName) ? authName
-                        : Model.PreAssignedApprover1Sam ?? "";
+                                            : Model.PreAssignedApprover1Sam ?? "";
                     }
                     <div class="col-3">
                         <div id="box-auth" class="border rounded p-2 @(authSigned ? "border-success border-2" : "")" style="min-height:90px;">
@@ -411,14 +412,7 @@
                     {
                         <a asp-action="Approve" asp-route-id="@Model.POId" asp-route-level="1"
                            class="btn btn-success w-100">
-                            <i class="bi bi-check-circle me-2"></i>Approve (Level 1)
-                        </a>
-                    }
-                    @if (Model.CanApprove2)
-                    {
-                        <a asp-action="Approve" asp-route-id="@Model.POId" asp-route-level="2"
-                           class="btn btn-success w-100">
-                            <i class="bi bi-check-circle-fill me-2"></i>Final Approve (Level 2)
+                            <i class="bi bi-check-circle-fill me-2"></i>Approve &amp; Complete
                         </a>
                     }
                 </div>
@@ -436,25 +430,23 @@
                 @{
                     var steps = new[]
                     {
-                                ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
-                                ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
-                                ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
-                                ("Authorized", POStatus.Authorized, "bi-shield-check",  "warning"),
-                                ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
-                                };
+                        ("Draft",      POStatus.Draft,      "bi-pencil-square", "secondary"),
+                        ("Requested",  POStatus.Requested,  "bi-person-check",  "primary"),
+                        ("Issued",     POStatus.Issued,     "bi-send-check",    "info"),
+                        ("Completed",  POStatus.Completed,  "bi-trophy",        "success"),
+                    };
                 }
                 <div class="bt-workflow">
                     @foreach (var (label, status, icon, color) in steps)
                     {
-                        bool isDone = (int)Model.Status > (int)status || Model.Status == status;
+                        bool isDone    = (int)Model.Status > (int)status || Model.Status == status;
                         bool isCurrent = Model.Status == status;
 
                         // แสดงชื่อผู้รับผิดชอบที่ pre-assign ไว้
-                        string assignedPerson = status switch
-                        {
-                            POStatus.Issued => Model.IssuerName ?? Model.PreAssignedIssuerSam,
+                        string assignedPerson = status switch {
+                            POStatus.Issued     => Model.IssuerName ?? Model.PreAssignedIssuerSam,
                             POStatus.Authorized => Model.Approver1Name ?? Model.PreAssignedApprover1Sam,
-                            POStatus.Completed => Model.Approver2Name ?? Model.PreAssignedApprover2Sam,
+                            POStatus.Completed  => Model.Approver2Name ?? Model.PreAssignedApprover2Sam,
                             _ => ""
                         };
 
@@ -515,50 +507,42 @@
 </div>
 
 @section Scripts {
-    <style>
-        @@keyframes spin {
-            to {
-                transform: rotate(360deg);
+<style>
+@@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display:inline-block; animation: spin 1s linear infinite; }
+</style>
+<script>
+// ── Lazy-fetch signature images ─────────────────────────────
+$(function () {
+    // ดึง signature image สำหรับทุก .sig-lazy element
+    $('.sig-lazy').each(function () {
+        var $el  = $(this);
+        var sam  = $el.data('sam');
+        if (!sam) { $el.html(''); return; }
+
+        $.ajax({
+            url: '/api/signature/image/' + encodeURIComponent(sam),
+            method: 'GET',
+            success: function (res) {
+                if (res && res.imageBase64) {
+                    var img = $('<img>')
+                        .attr('src', 'data:image/png;base64,' + res.imageBase64)
+                        .attr('alt', 'Signature')
+                        .css({ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' })
+                        .addClass('mb-1');
+                    $el.replaceWith(img);
+                    // อัปเดต border สีเขียว
+                    $el.closest('.border').addClass('border-success border-2');
+                } else {
+                    $el.html('');
+                }
+            },
+            error: function () {
+                // ไม่มีลายเซ็น — ไม่แสดงอะไร
+                $el.html('');
             }
-        }
-
-        .spin {
-            display: inline-block;
-            animation: spin 1s linear infinite;
-        }
-    </style>
-    <script>
-        // ── Lazy-fetch signature images ─────────────────────────────
-        $(function () {
-            // ดึง signature image สำหรับทุก .sig-lazy element
-            $('.sig-lazy').each(function () {
-                var $el  = $(this);
-                var sam  = $el.data('sam');
-                if (!sam) { $el.html(''); return; }
-
-                $.ajax({
-                    url: '/api/signature/image/' + encodeURIComponent(sam),
-                    method: 'GET',
-                    success: function (res) {
-                        if (res && res.imageBase64) {
-                            var img = $('<img>')
-                                .attr('src', 'data:image/png;base64,' + res.imageBase64)
-                                .attr('alt', 'Signature')
-                                .css({ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' })
-                                .addClass('mb-1');
-                            $el.replaceWith(img);
-                            // อัปเดต border สีเขียว
-                            $el.closest('.border').addClass('border-success border-2');
-                        } else {
-                            $el.html('');
-                        }
-                    },
-                    error: function () {
-                        // ไม่มีลายเซ็น — ไม่แสดงอะไร
-                        $el.html('');
-                    }
-                });
-            });
         });
-    </script>
+    });
+});
+</script>
 }

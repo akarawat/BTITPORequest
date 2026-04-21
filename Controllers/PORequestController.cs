@@ -164,22 +164,18 @@ namespace BTITPORequest.Controllers
                         && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
                             || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
 
+            // CanApprove: Approver role + PreAssigned check → Issued → Completed โดยตรง
             po.CanApprove1 = po.Status == POStatus.Issued
                 && (user.Role == "Admin"
                     || (user.Role == "Approver"
                         && (string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
                             || po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
 
-            var preApp2 = !string.IsNullOrEmpty(po.PreAssignedApprover2Sam)
-                          ? po.PreAssignedApprover2Sam : po.PreAssignedApprover1Sam;
-            po.CanApprove2 = po.Status == POStatus.Authorized
-                && (user.Role == "Admin"
-                    || (user.Role == "Approver"
-                        && (string.IsNullOrEmpty(preApp2)
-                            || preApp2.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+            // ไม่มี CanApprove2 อีกต่อไป — 1 level approval เท่านั้น
+            po.CanApprove2 = false;
 
-            po.CanDownloadPDF = po.Status == POStatus.Completed
-                && (po.RequesterSam == user.SamAcc || user.Role == "Admin");
+            // ทุกคนที่ login แล้วสามารถ Download PDF ได้เมื่อ Completed
+            po.CanDownloadPDF = po.Status == POStatus.Completed;
 
             return View(po);
         }
@@ -251,40 +247,22 @@ namespace BTITPORequest.Controllers
 
             if (action == "approve")
             {
-                var purpose    = level == 2 ? "Completed" : "Authorized";
+                // Single level approval: Issued → Completed โดยตรง
                 var signResult = await _signService.SignDataAsync(
-                    po.PONumber, purpose, user.SamAcc, user.FullName, user.Department, remark);
+                    po.PONumber, "Completed", user.SamAcc, user.FullName, user.Department, remark);
                 var sigImage = await GetOrFetchSignatureAsync(user);
 
-                await _poService.ApprovePOAsync(id, level,
+                await _poService.ApprovePOAsync(id, 1,
                     user.SamAcc, user.FullName, user.Department,
                     signResult?.SignatureBase64 ?? "", sigImage, remark);
 
-                if (level == 2)
-                {
-                    // Completed → แจ้ง Requester
-                    var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
-                    if (!string.IsNullOrEmpty(reqEmail))
-                        _ = _mail.NotifyCompletedAsync(reqEmail, po.PONumber, po.VendorCompany,
-                                po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
-                    TempData["Success"] = "PO fully approved! Document complete.";
-                }
-                else
-                {
-                    // Level 1 → แจ้ง Approver Level 2
-                    var preApp = !string.IsNullOrEmpty(po.PreAssignedApprover2Sam)
-                                 ? po.PreAssignedApprover2Sam : po.PreAssignedApprover1Sam;
-                    if (!string.IsNullOrEmpty(preApp))
-                    {
-                        var approvers = await _poService.GetUsersByRoleAsync("Approver");
-                        var approver2 = approvers.FirstOrDefault(a =>
-                            a.SamAcc.Equals(preApp, StringComparison.OrdinalIgnoreCase));
-                        if (approver2 != null && !string.IsNullOrEmpty(approver2.Email))
-                            _ = _mail.NotifyApproverAsync(approver2.Email, po.PONumber, po.VendorCompany,
-                                    po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
-                    }
-                    TempData["Success"] = "PO approved — moving to final step.";
-                }
+                // แจ้ง Requester ว่า PO Completed
+                var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+                if (!string.IsNullOrEmpty(reqEmail))
+                    _ = _mail.NotifyCompletedAsync(reqEmail, po.PONumber, po.VendorCompany,
+                            po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
+
+                TempData["Success"] = "PO approved & completed! Ready to download PDF.";
             }
             else
             {
@@ -301,19 +279,31 @@ namespace BTITPORequest.Controllers
             return RedirectToAction("Detail", new { id });
         }
 
-        // ── DOWNLOAD PDF ──────────────────────────────────────
+        // ── DOWNLOAD PDF (Digital — full with header/footer) ──
         [HttpGet]
         public async Task<IActionResult> DownloadPdf(int id)
         {
-            var user = CurrentUser;
-            var po   = await _poService.GetPOByIdAsync(id);
+            var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
-            if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
             if (po.Status != POStatus.Completed)
                 return BadRequest("PDF is only available for completed POs.");
 
+            var user     = CurrentUser;
             var pdfBytes = await _pdfService.GeneratePOPdfAsync(po, user.SamAcc, user.FullName);
             return File(pdfBytes, "application/pdf", $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}.pdf");
+        }
+
+        // ── PRINT PDF (Blank Form — content only, no header/footer) ──
+        [HttpGet]
+        public async Task<IActionResult> PrintPdf(int id)
+        {
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            if (po.Status != POStatus.Completed)
+                return BadRequest("PDF is only available for completed POs.");
+
+            var pdfBytes = await _pdfService.GeneratePOPdfForPrintAsync(po);
+            return File(pdfBytes, "application/pdf", $"PO_{po.PONumber}_{po.PODate:yyyyMMdd}_print.pdf");
         }
 
         // ── PRIVATE: Do Submit → notify Issuer ───────────────

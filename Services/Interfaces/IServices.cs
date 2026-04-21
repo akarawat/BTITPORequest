@@ -77,7 +77,15 @@ namespace BTITPORequest.Services.Interfaces
     // ──────────────────────────────────────────────────────────
     public interface IPdfService
     {
+        /// <summary>Generate full PO PDF with header/footer + digital sign embed</summary>
         Task<byte[]> GeneratePOPdfAsync(
             PORequestModel po, string signerUsername, string signerFullName);
+
+        /// <summary>
+        /// Generate content-only PDF for printing on BERNINA Blank Form
+        /// ไม่มี header และ footer — เว้นบน 2.5cm ล่าง 2.5cm
+        /// เพื่อให้พิมพ์ลง letterhead กระดาษได้พอดี
+        /// </summary>
+        Task<byte[]> GeneratePOPdfForPrintAsync(PORequestModel po);
     }
 }
