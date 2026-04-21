@@ -154,44 +154,53 @@
                 }
 
                 <!-- ── Signature Row ──────────────────────────────── -->
+                @{
+                    // Helper: render signature box ด้วย lazy-fetch fallback
+                    // ถ้าไม่มีรูปใน DB → fetch ผ่าน /api/signature/image/{sam}
+                    string SigBoxId(string role) => "sig-" + role.ToLower().Replace(" ", "-");
+                }
+
                 <div class="row text-center g-2 mt-2">
 
                     @* Supplier *@
                     <div class="col-3">
                         <div class="border rounded p-2 bg-light" style="min-height:90px;">
-                            <div class="small text-muted mb-1 fw-semibold">For Supplier<br />Sign &amp; Feedback</div>
-                            <div style="height:40px;border:1px dashed #ccc;border-radius:4px;margin:4px 0;"></div>
+                            <div class="small fw-semibold text-muted mb-2">For Supplier<br />Sign &amp; Feedback</div>
+                            <div style="height:38px;border:1px dashed #ccc;border-radius:4px;"></div>
                         </div>
                     </div>
 
                     @* Requested *@
                     @{
                         bool reqSigned = HasSigned(Model.RequesterSignatureBase64, Model.RequesterSignatureImage);
+                        string reqSam = Model.RequesterSam;
+                        bool reqHasStatus = Model.Status != POStatus.Draft;
                     }
                     <div class="col-3">
-                        <div class="border rounded p-2 @(reqSigned ? "border-success" : "")" style="min-height:90px;">
-                            <div class="small text-muted mb-1">Requested:</div>
+                        <div id="box-req" class="border rounded p-2 @(reqSigned ? "border-success border-2" : "")" style="min-height:90px;">
+                            <div class="small fw-semibold text-muted mb-1">Requested:</div>
+
                             @if (!string.IsNullOrEmpty(Model.RequesterSignatureImage))
                             {
+                                <!-- มีรูปใน DB แสดงทันที -->
                                 <img src="data:image/png;base64,@Model.RequesterSignatureImage"
-                                     alt="Signature" class="mb-1"
-                                     style="max-height:45px;max-width:100%;object-fit:contain;" />
+                                     alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
                             }
-                            else if (reqSigned)
+                            else if (reqHasStatus && !string.IsNullOrEmpty(reqSam))
                             {
-                                <div class="text-success small mb-1">
-                                    <i class="bi bi-patch-check-fill"></i> Digitally Signed
+                                <!-- ไม่มีรูปใน DB แต่มี samAcc → lazy fetch ผ่าน proxy -->
+                                <div id="sig-img-req" class="sig-lazy" data-sam="@reqSam"
+                                     style="min-height:42px;display:flex;align-items:center;justify-content:center;">
+                                    <span class="text-muted" style="font-size:.7rem;">
+                                        <i class="bi bi-arrow-repeat spin me-1"></i>loading...
+                                    </span>
                                 </div>
                             }
-                            else if (Model.Status != POStatus.Draft)
+                            else
                             {
-                                <div class="mb-1" style="font-size:.7rem;">
-                                    <a href="https://bt_signature.berninathailand.com/SignatureRegistry"
-                                       target="_blank" class="text-muted text-decoration-none">
-                                        <i class="bi bi-pencil-square me-1"></i>ลงทะเบียนลายเซ็น
-                                    </a>
-                                </div>
+                                <div style="height:42px;"></div>
                             }
+
                             <div class="small fw-semibold">@Model.RequesterName</div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.RequesterTitle</div>
                             @if (Model.RequestedDate.HasValue)
@@ -206,15 +215,25 @@
                     @* Issued *@
                     @{
                         bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
+                        string issSam = Model.IssuerSam;
                     }
                     <div class="col-3">
-                        <div class="border rounded p-2 @(issSigned ? "border-success border-2" : "")" style="min-height:90px;">
-                            <div class="small text-muted mb-1 fw-semibold">Issued:</div>
+                        <div id="box-iss" class="border rounded p-2 @(issSigned ? "border-success border-2" : "")" style="min-height:90px;">
+                            <div class="small fw-semibold text-muted mb-1">Issued:</div>
+
                             @if (!string.IsNullOrEmpty(Model.IssuerSignatureImage))
                             {
                                 <img src="data:image/png;base64,@Model.IssuerSignatureImage"
-                                     alt="Signature" class="mb-1"
-                                     style="max-height:45px;max-width:100%;object-fit:contain;" />
+                                     alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
+                            }
+                            else if (!string.IsNullOrEmpty(issSam))
+                            {
+                                <div id="sig-img-iss" class="sig-lazy" data-sam="@issSam"
+                                     style="min-height:42px;display:flex;align-items:center;justify-content:center;">
+                                    <span class="text-muted" style="font-size:.7rem;">
+                                        <i class="bi bi-arrow-repeat spin me-1"></i>loading...
+                                    </span>
+                                </div>
                             }
                             else if (issSigned)
                             {
@@ -225,8 +244,9 @@
                             else
                             {
 
-                                <div style="height:40px;"></div>
+                                <div style="height:42px;"></div>
                             }
+
                             <div class="small fw-semibold">@Model.IssuerName</div>
                             <div class="text-muted" style="font-size:.7rem;">@Model.IssuerTitle</div>
                             @if (Model.IssuedDate.HasValue)
@@ -238,26 +258,33 @@
                         </div>
                     </div>
 
-                    @* Authorized (Approver 2 final, fallback Approver 1) *@
+                    @* Authorized *@
                     @{
-                        var authName = Model.Approver2Name ?? Model.Approver1Name ?? "";
-                        var authTitle = Model.Approver2Title ?? Model.Approver1Title ?? "";
-                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage)
-                        ? Model.Approver2SignatureImage
-                        : Model.Approver1SignatureImage ?? "";
-                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64)
-                        ? Model.Approver2SignatureBase64
-                        : Model.Approver1SignatureBase64 ?? "";
+                        var authName = !string.IsNullOrEmpty(Model.Approver2Name) ? Model.Approver2Name : Model.Approver1Name ?? "";
+                        var authTitle = !string.IsNullOrEmpty(Model.Approver2Title) ? Model.Approver2Title : Model.Approver1Title ?? "";
+                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage) ? Model.Approver2SignatureImage : Model.Approver1SignatureImage ?? "";
+                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
+                        var authSam = !string.IsNullOrEmpty(Model.Approver2Sam) ? Model.Approver2Sam : Model.Approver1Sam ?? "";
                         var authDate = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
                     }
                     <div class="col-3">
-                        <div class="border rounded p-2 @(authSigned ? "border-success" : "")" style="min-height:90px;">
-                            <div class="small text-muted mb-1">Authorized:</div>
+                        <div id="box-auth" class="border rounded p-2 @(authSigned ? "border-success border-2" : "")" style="min-height:90px;">
+                            <div class="small fw-semibold text-muted mb-1">Authorized:</div>
+
                             @if (!string.IsNullOrEmpty(authImg))
                             {
                                 <img src="data:image/png;base64,@authImg"
-                                     alt="Signature" style="max-height:40px;max-width:100%;" class="mb-1" />
+                                     alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
+                            }
+                            else if (!string.IsNullOrEmpty(authSam))
+                            {
+                                <div id="sig-img-auth" class="sig-lazy" data-sam="@authSam"
+                                     style="min-height:42px;display:flex;align-items:center;justify-content:center;">
+                                    <span class="text-muted" style="font-size:.7rem;">
+                                        <i class="bi bi-arrow-repeat spin me-1"></i>loading...
+                                    </span>
+                                </div>
                             }
                             else if (authSigned)
                             {
@@ -268,8 +295,9 @@
                             else
                             {
 
-                                <div style="height:40px;"></div>
+                                <div style="height:42px;"></div>
                             }
+
                             <div class="small fw-semibold">@authName</div>
                             <div class="text-muted" style="font-size:.7rem;">@authTitle</div>
                             @if (authDate.HasValue)
@@ -425,3 +453,52 @@
 
     </div>
 </div>
+
+@section Scripts {
+    <style>
+        @@keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+    <script>
+        // ── Lazy-fetch signature images ─────────────────────────────
+        $(function () {
+            // ดึง signature image สำหรับทุก .sig-lazy element
+            $('.sig-lazy').each(function () {
+                var $el  = $(this);
+                var sam  = $el.data('sam');
+                if (!sam) { $el.html(''); return; }
+
+                $.ajax({
+                    url: '/api/signature/image/' + encodeURIComponent(sam),
+                    method: 'GET',
+                    success: function (res) {
+                        if (res && res.imageBase64) {
+                            var img = $('<img>')
+                                .attr('src', 'data:image/png;base64,' + res.imageBase64)
+                                .attr('alt', 'Signature')
+                                .css({ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' })
+                                .addClass('mb-1');
+                            $el.replaceWith(img);
+                            // อัปเดต border สีเขียว
+                            $el.closest('.border').addClass('border-success border-2');
+                        } else {
+                            $el.html('');
+                        }
+                    },
+                    error: function () {
+                        // ไม่มีลายเซ็น — ไม่แสดงอะไร
+                        $el.html('');
+                    }
+                });
+            });
+        });
+    </script>
+}
