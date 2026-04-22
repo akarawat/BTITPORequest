@@ -66,10 +66,23 @@
 
             <!-- Vendor Info -->
             <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-transparent border-0 pb-0">
+                <div class="card-header bg-transparent border-0 pb-0 d-flex align-items-center justify-content-between">
                     <h6 class="fw-semibold mb-0"><i class="bi bi-building me-2 text-primary"></i>Vendor / Supplier</h6>
                 </div>
                 <div class="card-body">
+                    <!-- Vendor Search -->
+                    <div class="mb-3 position-relative">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-search me-1 text-muted"></i>ค้นหา Vendor จากรายการ
+                        </label>
+                        <input type="text" id="vendorSearch" class="form-control"
+                               placeholder="พิมพ์ชื่อบริษัทหรือผู้ติดต่อ..." autocomplete="off" />
+                        <div id="vendorDropdown"
+                             class="position-absolute w-100 bg-white border rounded shadow-sm"
+                             style="z-index:1000;max-height:220px;overflow-y:auto;display:none;">
+                        </div>
+                        <div class="form-text text-muted">เลือกจากรายการหรือพิมพ์ข้อมูลใหม่ได้เลย</div>
+                    </div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Attn (Contact Person) <span class="text-danger">*</span></label>
@@ -278,6 +291,7 @@
 
 @section Scripts {
     <script src="~/js/po-form.js" asp-append-version="true"></script>
+    <script src="~/js/vendor-autocomplete.js" asp-append-version="true"></script>
     <script>
         var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
         initPOForm(initialItems);

@@ -3,3 +3,4 @@ wwwroot\js\admin-roles.js
 wwwroot\js\dashboard.js
 wwwroot\js\po-form.js
 wwwroot\js\site.js
+wwwroot\js\vendor-autocomplete.js

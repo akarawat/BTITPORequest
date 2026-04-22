@@ -3,3 +3,6 @@ wwwroot\js\dashboard.js
 wwwroot\js\admin-roles.js
 wwwroot\css\site.css
 wwwroot\js\site.js
+wwwroot\img\letterhead_bottom.png
+wwwroot\img\letterhead_top.png
+wwwroot\js\vendor-autocomplete.js

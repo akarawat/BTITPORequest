@@ -1,10 +1,13 @@
 using BTITPORequest.Models;
 using BTITPORequest.Services.Interfaces;
 using iText.IO.Font.Constants;
+using iText.IO.Image;
 using iText.Kernel.Colors;
+using iText.Kernel.Events;
 using iText.Kernel.Font;
 using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using iText.Layout.Borders;
 using iText.Layout.Element;
@@ -57,24 +60,22 @@ namespace BTITPORequest.Services
 
             using var ms = new MemoryStream();
             var writer = new PdfWriter(ms);
-            var pdf = new PdfDocument(writer);
-            var doc = new Document(pdf, PageSize.A4);
-            doc.SetMargins(30, 30, 30, 30);
+            var pdf    = new PdfDocument(writer);
+            var doc    = new Document(pdf, PageSize.A4);
+            // Margin: บน 2.2cm (รูปหัว ~1.7cm + gap), ล่าง 2.5cm (รูปท้าย ~1.5cm + gap)
+            doc.SetMargins(62f, 30f, 72f, 30f);
 
             var fontR = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
             var fontB = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
 
-            // ── Header ────────────────────────────────────────
-            var hdr = new Table(UnitValue.CreatePercentArray(new float[] { 60, 40 })).UseAllAvailableWidth();
-            var hdrL = new Cell().SetBorder(Border.NO_BORDER);
-            hdrL.Add(new Paragraph($"TradeRegister No. {appSettings["CompanyTradeRegisterNo"]}").SetFont(fontR).SetFontSize(8));
-            hdrL.Add(new Paragraph($"Input Value Added Tax No. {appSettings["CompanyVatNo"]}").SetFont(fontR).SetFontSize(8));
-            hdr.AddCell(hdrL);
-            var hdrR = new Cell().SetBorder(Border.NO_BORDER).SetTextAlignment(TextAlignment.RIGHT);
-            hdrR.Add(new Paragraph($"made to create  {appSettings["CompanyName"]}").SetFont(fontB).SetFontSize(16).SetFontColor(ColorHeader));
-            hdr.AddCell(hdrR);
-            doc.Add(hdr);
-            doc.Add(new LineSeparator(new iText.Kernel.Pdf.Canvas.Draw.SolidLine(0.5f)).SetMarginBottom(6));
+            // ── Header & Footer images via Page Event ─────────────
+            var imgTopPath = System.IO.Path.Combine(
+                Directory.GetCurrentDirectory(), "wwwroot", "img", "letterhead_top.png");
+            var imgBotPath = System.IO.Path.Combine(
+                Directory.GetCurrentDirectory(), "wwwroot", "img", "letterhead_bottom.png");
+
+            pdf.AddEventHandler(PdfDocumentEvent.END_PAGE,
+                new LetterheadPageEvent(imgTopPath, imgBotPath));
 
             // ── PO Title ──────────────────────────────────────
             var title = new Table(UnitValue.CreatePercentArray(new float[] { 50, 50 })).UseAllAvailableWidth().SetMarginBottom(6);
@@ -215,12 +216,7 @@ namespace BTITPORequest.Services
                 !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "");
 
             doc.Add(sigTable);
-
-            // ── Footer ────────────────────────────────────────
-            doc.Add(new LineSeparator(new iText.Kernel.Pdf.Canvas.Draw.SolidLine(0.5f)).SetMarginTop(16));
-            doc.Add(new Paragraph($"{appSettings["CompanyName"]}  |  {appSettings["CompanyAddress"]}  |  T {appSettings["CompanyTel"]}")
-                .SetFont(fontR).SetFontSize(7).SetTextAlignment(TextAlignment.CENTER)
-                .SetFontColor(new DeviceRgb(0x66, 0x66, 0x66)));
+            // Footer image วาดโดย LetterheadPageEvent อัตโนมัติทุกหน้า
 
             doc.Close();
             return ms.ToArray();
@@ -430,5 +426,60 @@ namespace BTITPORequest.Services
             doc.Close();
             return ms.ToArray();
         }
+    }
+}
+
+// ── Page Event: วาด letterhead image บน header + footer ทุกหน้า ──
+public class LetterheadPageEvent : IEventHandler
+{
+    private readonly string _topImagePath;
+    private readonly string _botImagePath;
+
+    public LetterheadPageEvent(string topImagePath, string botImagePath)
+    {
+        _topImagePath = topImagePath;
+        _botImagePath = botImagePath;
+    }
+
+    public void HandleEvent(Event @event)
+    {
+        if (@event is not PdfDocumentEvent docEvent) return;
+
+        var page   = docEvent.GetPage();
+        var pdfDoc = docEvent.GetDocument();
+        var canvas = new PdfCanvas(page.NewContentStreamBefore(), page.GetResources(), pdfDoc);
+        var pageSize = page.GetPageSize();
+        float pageW  = pageSize.GetWidth();   // A4 = 595 pt
+        float pageH  = pageSize.GetHeight();  // A4 = 842 pt
+
+        // ── Header image ──────────────────────────────────────
+        if (System.IO.File.Exists(_topImagePath))
+        {
+            try
+            {
+                var imgData = ImageDataFactory.Create(_topImagePath);
+                float hdrH  = 42f;
+                float hdrY  = pageH - hdrH - 8f;
+                canvas.AddImageFittedIntoRectangle(imgData,
+                    new Rectangle(20f, hdrY, pageW - 40f, hdrH), false);
+            }
+            catch { }
+        }
+
+        // ── Footer image ──────────────────────────────────────
+        if (System.IO.File.Exists(_botImagePath))
+        {
+            try
+            {
+                var imgData = ImageDataFactory.Create(_botImagePath);
+                float ftrH  = 50f;
+                float ftrY  = 8f;
+                canvas.AddImageFittedIntoRectangle(imgData,
+                    new Rectangle(20f, ftrY, pageW - 40f, ftrH), false);
+            }
+            catch { }
+        }
+
+        canvas.Release();
     }
 }

@@ -1,0 +1,139 @@
+@model BTITPORequest.Models.VendorIndexViewModel
+@{
+    ViewData["Title"] = "Vendor Management";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-building me-2 text-primary"></i>Vendor Management</h4>
+        <p class="text-muted mb-0" style="font-size:.85rem;">จัดการข้อมูล Vendor / Supplier</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>Add Vendor
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible">
+        <i class="bi bi-check-circle me-1"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="bt-stat-card">
+            <div class="bt-stat-icon bg-primary-subtle text-primary"><i class="bi bi-building"></i></div>
+            <div class="bt-stat-value">@Model.TotalCount</div>
+            <div class="bt-stat-label">Vendor ทั้งหมด</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control"
+                           placeholder="ค้นหาชื่อบริษัท, ผู้ติดต่อ, Email"
+                           value="@Model.SearchText" />
+                </div>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-funnel me-1"></i>ค้นหา
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>บริษัท / Company</th>
+                        <th>ผู้ติดต่อ</th>
+                        <th>Tel / Fax</th>
+                        <th>Email</th>
+                        <th class="text-center" style="width:110px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Vendors.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-2 d-block mb-2 opacity-25"></i>
+                                ไม่พบข้อมูล Vendor
+                            </td>
+                        </tr>
+                    }
+                    @{ int i = 1; }
+                    @foreach (var v in Model.Vendors)
+                    {
+                        <tr>
+                            <td class="text-muted">@(i++)</td>
+                            <td>
+                                <div class="fw-semibold">@v.VendorCompany</div>
+                                <div class="text-muted" style="font-size:.75rem;">@v.VendorAddress</div>
+                            </td>
+                            <td>@v.VendorAttn</td>
+                            <td>
+                                <div>@v.VendorTel</div>
+                                @if (!string.IsNullOrEmpty(v.VendorFax) && v.VendorFax != "-")
+                                {
+                                    <div class="text-muted" style="font-size:.75rem;">Fax: @v.VendorFax</div>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(v.VendorEmail))
+                                {
+                                    <a href="mailto:@v.VendorEmail" class="text-decoration-none">@v.VendorEmail</a>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <a asp-action="Edit" asp-route-id="@v.VendorId"
+                                   class="btn btn-outline-primary btn-sm me-1" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-outline-danger btn-sm btn-delete"
+                                        data-id="@v.VendorId"
+                                        data-name="@v.VendorCompany"
+                                        title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(function () {
+    $('.btn-delete').on('click', function () {
+        var id   = $(this).data('id');
+        var name = $(this).data('name');
+        if (!confirm('ลบ "' + name + '" ใช่ไหม?')) return;
+        var $row = $(this).closest('tr');
+        $.post('/Vendor/Delete', { id: id })
+            .done(function () { $row.fadeOut(300, function () { $row.remove(); }); })
+            .fail(function () { alert('เกิดข้อผิดพลาด กรุณาลองใหม่'); });
+    });
+});
+</script>
+}

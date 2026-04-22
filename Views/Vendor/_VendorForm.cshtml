@@ -1,0 +1,37 @@
+@model BTITPORequest.Models.VendorInfoModel
+<div class="mb-3">
+    <label asp-for="VendorCompany" class="form-label fw-semibold">
+        Company Name <span class="text-danger">*</span>
+    </label>
+    <input asp-for="VendorCompany" class="form-control" placeholder="ชื่อบริษัท / Company" />
+    <span asp-validation-for="VendorCompany" class="text-danger small"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="VendorAttn" class="form-label fw-semibold">
+        Contact Person <span class="text-danger">*</span>
+    </label>
+    <input asp-for="VendorAttn" class="form-control" placeholder="ชื่อผู้ติดต่อ" />
+    <span asp-validation-for="VendorAttn" class="text-danger small"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="VendorAddress" class="form-label fw-semibold">
+        Address <span class="text-danger">*</span>
+    </label>
+    <textarea asp-for="VendorAddress" class="form-control" rows="2" placeholder="ที่อยู่"></textarea>
+    <span asp-validation-for="VendorAddress" class="text-danger small"></span>
+</div>
+<div class="row g-2 mb-3">
+    <div class="col-md-4">
+        <label asp-for="VendorTel" class="form-label fw-semibold">Tel No.</label>
+        <input asp-for="VendorTel" class="form-control" placeholder="เบอร์โทรศัพท์" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="VendorFax" class="form-label fw-semibold">Fax No.</label>
+        <input asp-for="VendorFax" class="form-control" placeholder="เบอร์แฟกซ์" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="VendorEmail" class="form-label fw-semibold">Email</label>
+        <input asp-for="VendorEmail" class="form-control" placeholder="email@example.com" />
+        <span asp-validation-for="VendorEmail" class="text-danger small"></span>
+    </div>
+</div>

@@ -375,7 +375,6 @@ C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\hostfxr.dll
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\hostpolicy.dll
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscordaccore.dll
-C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscordaccore_amd64_amd64_8.0.2526.11203.dll
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscordbi.dll
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscorrc.dll
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\msquic.dll
@@ -406,3 +405,4 @@ C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x64\BTITPORequest.pdb
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x64\BTITPORequest.genruntimeconfig.cache
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x64\ref\BTITPORequest.dll
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscordaccore_amd64_amd64_8.0.2626.16921.dll
