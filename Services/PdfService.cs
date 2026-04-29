@@ -60,8 +60,8 @@ namespace BTITPORequest.Services
 
             using var ms = new MemoryStream();
             var writer = new PdfWriter(ms);
-            var pdf    = new PdfDocument(writer);
-            var doc    = new Document(pdf, PageSize.A4);
+            var pdf = new PdfDocument(writer);
+            var doc = new Document(pdf, PageSize.A4);
             // Margin: บน 2.2cm (รูปหัว ~1.7cm + gap), ล่าง 2.5cm (รูปท้าย ~1.5cm + gap)
             doc.SetMargins(62f, 30f, 72f, 30f);
 
@@ -219,7 +219,47 @@ namespace BTITPORequest.Services
             // Footer image วาดโดย LetterheadPageEvent อัตโนมัติทุกหน้า
 
             doc.Close();
-            return ms.ToArray();
+
+            // ── Two-pass: stamp "Page X of Y" ────────────────────
+            return AddPageNumbers(ms.ToArray());
+        }
+
+        /// <summary>
+        /// Second pass — stamp "Page X of Y" มุมซ้ายล่างทุกหน้า
+        /// ทำหลัง doc.Close() เพราะต้องรู้ total pages ก่อน
+        /// </summary>
+        private static byte[] AddPageNumbers(byte[] pdfBytes)
+        {
+            using var msIn = new MemoryStream(pdfBytes);
+            using var msOut = new MemoryStream();
+
+            var reader = new PdfReader(msIn);
+            var writer2 = new PdfWriter(msOut);
+            var pdf2 = new PdfDocument(reader, writer2);
+            var fontR = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            int total = pdf2.GetNumberOfPages();
+
+            for (int i = 1; i <= total; i++)
+            {
+                var page = pdf2.GetPage(i);
+                var canvas = new PdfCanvas(page.NewContentStreamAfter(),
+                                           page.GetResources(), pdf2);
+                var pageNum = $"Page {i} of {total}";
+                var pageSize2 = pdf2.GetPage(i).GetPageSize();
+                // คำนวณ x ให้ชิดขวา: pageWidth - margin - textWidth
+                float textWidth = fontR.GetWidth(pageNum, 7f);
+                float xRight = pageSize2.GetWidth() - 20f - textWidth;
+
+                canvas.BeginText()
+                      .SetFontAndSize(fontR, 7f)
+                      .MoveText(xRight, 62f)
+                      .ShowText(pageNum)
+                      .EndText()
+                      .Release();
+            }
+
+            pdf2.Close();
+            return msOut.ToArray();
         }
 
         // ══════════════════════════════════════════════════════
@@ -233,8 +273,8 @@ namespace BTITPORequest.Services
 
             using var ms = new MemoryStream();
             var writer = new PdfWriter(ms);
-            var pdf    = new PdfDocument(writer);
-            var doc    = new Document(pdf, PageSize.A4);
+            var pdf = new PdfDocument(writer);
+            var doc = new Document(pdf, PageSize.A4);
 
             // Margins: top=2.5cm, bottom=2.5cm, left=1.5cm, right=1cm
             // 1 cm = 28.35 pt
@@ -297,7 +337,7 @@ namespace BTITPORequest.Services
 
                 doc.Add(contactTable);
             }
-            if (!string.IsNullOrEmpty(po.RefNo))       LabelVal("Ref.:", po.RefNo);
+            if (!string.IsNullOrEmpty(po.RefNo)) LabelVal("Ref.:", po.RefNo);
             doc.Add(new Paragraph($"Subject:  {po.Subject}").SetFont(fontR).SetFontSize(9).SetMarginBottom(8));
 
             // ── Line Items ────────────────────────────────────
@@ -385,8 +425,8 @@ namespace BTITPORequest.Services
                     try
                     {
                         var imgBytes = Convert.FromBase64String(sigImgBase64);
-                        var imgData  = iText.IO.Image.ImageDataFactory.Create(imgBytes);
-                        var img      = new Image(imgData)
+                        var imgData = iText.IO.Image.ImageDataFactory.Create(imgBytes);
+                        var img = new Image(imgData)
                             .SetWidth(90).SetHeight(36)
                             .SetHorizontalAlignment(HorizontalAlignment.CENTER);
                         cell.Add(img);
@@ -445,12 +485,12 @@ public class LetterheadPageEvent : IEventHandler
     {
         if (@event is not PdfDocumentEvent docEvent) return;
 
-        var page   = docEvent.GetPage();
+        var page = docEvent.GetPage();
         var pdfDoc = docEvent.GetDocument();
         var canvas = new PdfCanvas(page.NewContentStreamBefore(), page.GetResources(), pdfDoc);
         var pageSize = page.GetPageSize();
-        float pageW  = pageSize.GetWidth();   // A4 = 595 pt
-        float pageH  = pageSize.GetHeight();  // A4 = 842 pt
+        float pageW = pageSize.GetWidth();   // A4 = 595 pt
+        float pageH = pageSize.GetHeight();  // A4 = 842 pt
 
         // ── Header image ──────────────────────────────────────
         if (System.IO.File.Exists(_topImagePath))
@@ -458,8 +498,8 @@ public class LetterheadPageEvent : IEventHandler
             try
             {
                 var imgData = ImageDataFactory.Create(_topImagePath);
-                float hdrH  = 42f;
-                float hdrY  = pageH - hdrH - 8f;
+                float hdrH = 42f;
+                float hdrY = pageH - hdrH - 8f;
                 canvas.AddImageFittedIntoRectangle(imgData,
                     new Rectangle(20f, hdrY, pageW - 40f, hdrH), false);
             }
@@ -472,8 +512,8 @@ public class LetterheadPageEvent : IEventHandler
             try
             {
                 var imgData = ImageDataFactory.Create(_botImagePath);
-                float ftrH  = 50f;
-                float ftrY  = 8f;
+                float ftrH = 50f;
+                float ftrY = 8f;
                 canvas.AddImageFittedIntoRectangle(imgData,
                     new Rectangle(20f, ftrY, pageW - 40f, ftrH), false);
             }
