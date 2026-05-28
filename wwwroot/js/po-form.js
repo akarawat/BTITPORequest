@@ -24,13 +24,49 @@ function initPOForm(initialItems) {
     // VAT change
     $('#vatSelect').on('change', function () { recalcTotals(); });
 
-    // Form submit
-    $('#poForm').on('submit', function () {
+    // Form submit — validate + serialize line items
+    $('#poForm').on('submit', function (e) {
+        var ok = true;
+
+        // ── Validate line items ───────────────────────────────
         if (lineItems.length === 0) {
-            alert('Please add at least one line item.');
+            alert('กรุณาเพิ่มรายการสินค้า (Line Items) อย่างน้อย 1 รายการ');
+            ok = false;
+        }
+
+        // ── Validate Issuer ───────────────────────────────────
+        var $issuer = $('#issuerSelect');
+        if ($issuer.length) {
+            if (!$issuer.val()) {
+                $issuer.addClass('is-invalid');
+                ok = false;
+            } else {
+                $issuer.removeClass('is-invalid').addClass('is-valid');
+            }
+        }
+
+        // ── Validate Approver ─────────────────────────────────
+        var $approver = $('#approverSelect');
+        if ($approver.length) {
+            if (!$approver.val()) {
+                $approver.addClass('is-invalid');
+                ok = false;
+            } else {
+                $approver.removeClass('is-invalid').addClass('is-valid');
+            }
+        }
+
+        if (!ok) {
+            // Scroll ไปที่ field แรกที่ error
+            var $firstErr = $('.is-invalid').first();
+            if ($firstErr.length) {
+                $('html,body').animate({ scrollTop: $firstErr.offset().top - 100 }, 300);
+            }
+            e.preventDefault();
             return false;
         }
-        // Serialise line items to hidden field
+
+        // ── Serialize line items → hidden field ───────────────
         $('#lineItemsJson').val(JSON.stringify(lineItems));
         return true;
     });
@@ -54,26 +90,26 @@ function addLineRow(item) {
     var row = $('<tr class="line-row" data-idx="' + idx + '">').html(
         '<td class="text-muted fw-semibold text-center line-no">' + idx + '</td>' +
         '<td>' +
-            '<input type="text" class="form-control form-control-sm desc-input" ' +
-                   'value="' + escHtml(li.description) + '" ' +
-                   'placeholder="Item description" required ' +
-                   'data-idx="' + idx + '" />' +
+        '<input type="text" class="form-control form-control-sm desc-input" ' +
+        'value="' + escHtml(li.description) + '" ' +
+        'placeholder="Item description" required ' +
+        'data-idx="' + idx + '" />' +
         '</td>' +
         '<td>' +
-            '<input type="number" class="form-control form-control-sm qty-input text-end" ' +
-                   'value="' + li.quantity + '" min="0.001" step="0.001" required ' +
-                   'data-idx="' + idx + '" />' +
+        '<input type="number" class="form-control form-control-sm qty-input text-end" ' +
+        'value="' + li.quantity + '" min="0.001" step="0.001" required ' +
+        'data-idx="' + idx + '" />' +
         '</td>' +
         '<td>' +
-            '<input type="number" class="form-control form-control-sm price-input text-end" ' +
-                   'value="' + li.unitPrice + '" min="0" step="0.01" required ' +
-                   'data-idx="' + idx + '" />' +
+        '<input type="number" class="form-control form-control-sm price-input text-end" ' +
+        'value="' + li.unitPrice + '" min="0" step="0.01" required ' +
+        'data-idx="' + idx + '" />' +
         '</td>' +
         '<td class="text-end fw-semibold amount-cell">' + formatNum(li.quantity * li.unitPrice) + '</td>' +
         '<td class="text-center">' +
-            '<button type="button" class="btn btn-sm btn-outline-danger remove-btn" data-idx="' + idx + '">' +
-                '<i class="bi bi-trash"></i>' +
-            '</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-btn" data-idx="' + idx + '">' +
+        '<i class="bi bi-trash"></i>' +
+        '</button>' +
         '</td>'
     );
 
@@ -148,7 +184,7 @@ function formatNum(n) {
 }
 
 function escHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function numberToWords(amount) {
@@ -161,14 +197,14 @@ function numberToWords(amount) {
 
 function convertToWords(n) {
     if (n === 0) return 'Zero';
-    var ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
-                'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen',
-                'Seventeen','Eighteen','Nineteen'];
-    var tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-    if (n < 20)  return ones[n];
-    if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? ' ' + ones[n%10] : '');
-    if (n < 1000) return ones[Math.floor(n/100)] + ' Hundred' + (n%100 ? ' ' + convertToWords(n%100) : '');
-    if (n < 1e6)  return convertToWords(Math.floor(n/1000)) + ' Thousand' + (n%1000 ? ' ' + convertToWords(n%1000) : '');
-    if (n < 1e9)  return convertToWords(Math.floor(n/1e6)) + ' Million' + (n%1e6 ? ' ' + convertToWords(n%1e6) : '');
-    return convertToWords(Math.floor(n/1e9)) + ' Billion' + (n%1e9 ? ' ' + convertToWords(n%1e9) : '');
+    var ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+        'Seventeen', 'Eighteen', 'Nineteen'];
+    var tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+    if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertToWords(n % 100) : '');
+    if (n < 1e6) return convertToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convertToWords(n % 1000) : '');
+    if (n < 1e9) return convertToWords(Math.floor(n / 1e6)) + ' Million' + (n % 1e6 ? ' ' + convertToWords(n % 1e6) : '');
+    return convertToWords(Math.floor(n / 1e9)) + ' Billion' + (n % 1e9 ? ' ' + convertToWords(n % 1e9) : '');
 }

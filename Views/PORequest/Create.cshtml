@@ -303,44 +303,20 @@
     <script>
         var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
         initPOForm(initialItems);
-    </script>
-    <script>
-        // ── Client-side: บังคับเลือก Issuer + Approver ก่อน Submit ──
+
+        // Real-time validation feedback เมื่อเปลี่ยน dropdown
         $(function () {
-        function validateWorkflow() {
-        var ok = true;
-        if ($('#issuerSelect').length) {
-        if (!$('#issuerSelect').val()) {
-        $('#issuerSelect').addClass('is-invalid'); ok = false;
-        } else {
-        $('#issuerSelect').removeClass('is-invalid').addClass('is-valid');
-        }
-        }
-        if ($('#approverSelect').length) {
-        if (!$('#approverSelect').val()) {
-        $('#approverSelect').addClass('is-invalid'); ok = false;
-        } else {
-        $('#approverSelect').removeClass('is-invalid').addClass('is-valid');
-        }
-        }
-        return ok;
-        }
-
-        // Real-time validation เมื่อเปลี่ยน dropdown
-        $('#issuerSelect, #approverSelect').on('change', validateWorkflow);
-
-        // ตรวจก่อน form submit ทุกปุ่ม
-        $('form').on('submit', function (e) {
-        if (!validateWorkflow()) {
-        e.preventDefault();
-        var $card = $('#issuerSelect, #approverSelect').filter('.is-invalid')
-        .first().closest('.card');
-        if ($card.length) {
-        $('html,body').animate({ scrollTop: $card.offset().top - 80 }, 300);
-        $card.addClass('border-danger');
-        setTimeout(function () { $card.removeClass('border-danger'); }, 1800);
-        }
-        }
+        $('#issuerSelect').on('change', function () {
+        if ($(this).val())
+        $(this).removeClass('is-invalid').addClass('is-valid');
+        else
+        $(this).addClass('is-invalid').removeClass('is-valid');
+        });
+        $('#approverSelect').on('change', function () {
+        if ($(this).val())
+        $(this).removeClass('is-invalid').addClass('is-valid');
+        else
+        $(this).addClass('is-invalid').removeClass('is-valid');
         });
         });
     </script>
