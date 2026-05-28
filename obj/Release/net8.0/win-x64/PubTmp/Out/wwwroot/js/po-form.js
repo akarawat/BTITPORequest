@@ -24,17 +24,21 @@ function initPOForm(initialItems) {
     // VAT change
     $('#vatSelect').on('change', function () { recalcTotals(); });
 
-    // Form submit — validate + serialize line items
+    // Form submit — validate + serialize
     $('#poForm').on('submit', function (e) {
+        var submitNow = $('[name="submitNow"]:focus, [name="submitNow"][clicked]').val() === 'true'
+            || $(document.activeElement).attr('name') === 'submitNow'
+            && $(document.activeElement).val() === 'true';
+
         var ok = true;
 
-        // ── Validate line items ───────────────────────────────
+        // ── Validate line items (ทุกกรณี) ──────────────────────
         if (lineItems.length === 0) {
             alert('กรุณาเพิ่มรายการสินค้า (Line Items) อย่างน้อย 1 รายการ');
             ok = false;
         }
 
-        // ── Validate Issuer ───────────────────────────────────
+        // ── Validate Issuer + Approver (ทุกกรณี รวม Draft) ────
         var $issuer = $('#issuerSelect');
         if ($issuer.length) {
             if (!$issuer.val()) {
@@ -45,7 +49,6 @@ function initPOForm(initialItems) {
             }
         }
 
-        // ── Validate Approver ─────────────────────────────────
         var $approver = $('#approverSelect');
         if ($approver.length) {
             if (!$approver.val()) {
@@ -57,7 +60,6 @@ function initPOForm(initialItems) {
         }
 
         if (!ok) {
-            // Scroll ไปที่ field แรกที่ error
             var $firstErr = $('.is-invalid').first();
             if ($firstErr.length) {
                 $('html,body').animate({ scrollTop: $firstErr.offset().top - 100 }, 300);
@@ -66,9 +68,19 @@ function initPOForm(initialItems) {
             return false;
         }
 
-        // ── Serialize line items → hidden field ───────────────
+        // ── Serialize line items → hidden field ─────────────────
         $('#lineItemsJson').val(JSON.stringify(lineItems));
         return true;
+    });
+
+    // Real-time validation feedback
+    $(document).on('change', '#issuerSelect', function () {
+        $(this).val() ? $(this).removeClass('is-invalid').addClass('is-valid')
+            : $(this).addClass('is-invalid').removeClass('is-valid');
+    });
+    $(document).on('change', '#approverSelect', function () {
+        $(this).val() ? $(this).removeClass('is-invalid').addClass('is-valid')
+            : $(this).addClass('is-invalid').removeClass('is-valid');
     });
 
     recalcTotals();

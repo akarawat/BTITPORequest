@@ -94,21 +94,12 @@ namespace BTITPORequest.Controllers
             var user = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
 
-            // ── Validation ────────────────────────────────────────
+            // Line items validation เท่านั้น — Issuer/Approver ตรวจโดย JS แล้ว
             if (lineItems.Count == 0)
-                ModelState.AddModelError("", "กรุณาเพิ่มรายการสินค้า (Line Items) อย่างน้อย 1 รายการ");
-
-            // บังคับเลือก Issuer และ Approver ทั้งกรณี Save Draft และ Submit
-            if (string.IsNullOrWhiteSpace(selectedIssuerSam))
-                ModelState.AddModelError("selectedIssuerSam", "กรุณาเลือก Issuer ก่อน");
-
-            if (string.IsNullOrWhiteSpace(selectedApprover1Sam))
-                ModelState.AddModelError("selectedApprover1Sam", "กรุณาเลือก Approver ก่อน");
-
-            if (!ModelState.IsValid)
             {
                 var issuers = await _poService.GetUsersByRoleAsync("Issuer");
                 var approvers = await _poService.GetUsersByRoleAsync("Approver");
+                ModelState.AddModelError("", "กรุณาเพิ่มรายการสินค้า (Line Items) อย่างน้อย 1 รายการ");
                 return View(new POCreateViewModel
                 {
                     PO = po,

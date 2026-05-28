@@ -303,21 +303,5 @@
     <script>
         var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
         initPOForm(initialItems);
-
-        // Real-time validation feedback เมื่อเปลี่ยน dropdown
-        $(function () {
-        $('#issuerSelect').on('change', function () {
-        if ($(this).val())
-        $(this).removeClass('is-invalid').addClass('is-valid');
-        else
-        $(this).addClass('is-invalid').removeClass('is-valid');
-        });
-        $('#approverSelect').on('change', function () {
-        if ($(this).val())
-        $(this).removeClass('is-invalid').addClass('is-valid');
-        else
-        $(this).addClass('is-invalid').removeClass('is-valid');
-        });
-        });
     </script>
 }
