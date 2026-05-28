@@ -420,35 +420,24 @@ namespace BTITPORequest.Controllers
         /// </summary>
         private async Task<PORequestModel> FillMissingSignatureImagesAsync(PORequestModel po)
         {
+            // Always fetch จาก API (ไม่ใช้ cached ใน DB) เพื่อให้ได้ลายเซ็นล่าสุดเสมอ
             var tasks = new List<Task>();
 
-            // Requester
-            if (string.IsNullOrEmpty(po.RequesterSignatureImage)
-                && !string.IsNullOrEmpty(po.RequesterSam))
+            if (!string.IsNullOrEmpty(po.RequesterSam))
                 tasks.Add(Task.Run(async () =>
-                    po.RequesterSignatureImage =
-                        await FetchSigSafe(po.RequesterSam) ?? string.Empty));
+                    po.RequesterSignatureImage = await FetchSigSafe(po.RequesterSam) ?? string.Empty));
 
-            // Issuer
-            if (string.IsNullOrEmpty(po.IssuerSignatureImage)
-                && !string.IsNullOrEmpty(po.IssuerSam))
+            if (!string.IsNullOrEmpty(po.IssuerSam))
                 tasks.Add(Task.Run(async () =>
-                    po.IssuerSignatureImage =
-                        await FetchSigSafe(po.IssuerSam) ?? string.Empty));
+                    po.IssuerSignatureImage = await FetchSigSafe(po.IssuerSam) ?? string.Empty));
 
-            // Approver1 (used as Authorized in single-level flow)
-            if (string.IsNullOrEmpty(po.Approver1SignatureImage)
-                && !string.IsNullOrEmpty(po.Approver1Sam))
+            if (!string.IsNullOrEmpty(po.Approver1Sam))
                 tasks.Add(Task.Run(async () =>
-                    po.Approver1SignatureImage =
-                        await FetchSigSafe(po.Approver1Sam) ?? string.Empty));
+                    po.Approver1SignatureImage = await FetchSigSafe(po.Approver1Sam) ?? string.Empty));
 
-            // Approver2 (ถ้ามี)
-            if (string.IsNullOrEmpty(po.Approver2SignatureImage)
-                && !string.IsNullOrEmpty(po.Approver2Sam))
+            if (!string.IsNullOrEmpty(po.Approver2Sam))
                 tasks.Add(Task.Run(async () =>
-                    po.Approver2SignatureImage =
-                        await FetchSigSafe(po.Approver2Sam) ?? string.Empty));
+                    po.Approver2SignatureImage = await FetchSigSafe(po.Approver2Sam) ?? string.Empty));
 
             if (tasks.Count > 0)
             {

@@ -236,15 +236,9 @@
                         <div id="box-req" class="border rounded p-2 @(reqSigned ? "border-success border-2" : "")" style="min-height:90px;">
                             <div class="small fw-semibold text-muted mb-1">Requested:</div>
 
-                            @if (!string.IsNullOrEmpty(Model.RequesterSignatureImage))
+                            @if (reqHasStatus && !string.IsNullOrEmpty(reqSam))
                             {
-                                <!-- มีรูปใน DB แสดงทันที -->
-                                <img src="data:image/png;base64,@Model.RequesterSignatureImage"
-                                     alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
-                            }
-                            else if (reqHasStatus && !string.IsNullOrEmpty(reqSam))
-                            {
-                                <!-- ไม่มีรูปใน DB แต่มี samAcc → lazy fetch ผ่าน proxy -->
+                                <!-- Always lazy-fetch จาก API เพื่อแสดงลายเซ็นล่าสุดเสมอ -->
                                 <div id="sig-img-req" class="sig-lazy" data-sam="@reqSam"
                                      style="min-height:42px;display:flex;align-items:center;justify-content:center;">
                                     <span class="text-muted" style="font-size:.7rem;">
@@ -288,13 +282,8 @@
 
                             @if (issSigned)
                             {
-                                @* Approved แล้ว — แสดงรูปลายเซ็น *@
-                                @if (!string.IsNullOrEmpty(Model.IssuerSignatureImage))
-                                {
-                                    <img src="data:image/png;base64,@Model.IssuerSignatureImage"
-                                         alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
-                                }
-                                else if (!string.IsNullOrEmpty(Model.IssuerSam))
+                                @* Always lazy-fetch จาก API เพื่อแสดงลายเซ็นล่าสุดเสมอ *@
+                                @if (!string.IsNullOrEmpty(Model.IssuerSam))
                                 {
                                     <div id="sig-img-iss" class="sig-lazy" data-sam="@Model.IssuerSam"
                                          style="min-height:42px;display:flex;align-items:center;justify-content:center;">
@@ -371,13 +360,8 @@
 
                             @if (authSigned)
                             {
-                                @* Approved แล้ว — แสดงรูปลายเซ็น *@
-                                @if (!string.IsNullOrEmpty(authImg))
-                                {
-                                    <img src="data:image/png;base64,@authImg"
-                                         alt="Signature" style="max-height:42px;max-width:100%;object-fit:contain;" class="mb-1" />
-                                }
-                                else if (!string.IsNullOrEmpty(authSamActual))
+                                @* Always lazy-fetch จาก API เพื่อแสดงลายเซ็นล่าสุดเสมอ *@
+                                @if (!string.IsNullOrEmpty(authSamActual))
                                 {
                                     <div id="sig-img-auth" class="sig-lazy" data-sam="@authSamActual"
                                          style="min-height:42px;display:flex;align-items:center;justify-content:center;">

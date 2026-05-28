@@ -3,6 +3,6 @@ wwwroot\img\letterhead_bottom.png
 wwwroot\img\letterhead_top.png
 wwwroot\js\admin-roles.js
 wwwroot\js\dashboard.js
-wwwroot\js\po-form.js
 wwwroot\js\site.js
 wwwroot\js\vendor-autocomplete.js
+wwwroot\js\po-form.js
