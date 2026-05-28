@@ -9,10 +9,10 @@ function initDashboardCharts(dailyData, statusData) {
         new Chart(dailyCtx, {
             type: 'bar',
             data: {
-                labels: dailyData.map(function (d) { return d.date; }),
+                labels: dailyData.map(function (d) { return d.Date; }),
                 datasets: [{
                     label: 'Amount (Baht)',
-                    data: dailyData.map(function (d) { return d.amount; }),
+                    data: dailyData.map(function (d) { return d.Amount; }),
                     backgroundColor: 'rgba(26, 86, 118, 0.7)',
                     borderColor: 'rgba(26, 86, 118, 1)',
                     borderWidth: 1,
@@ -63,11 +63,11 @@ function initDashboardCharts(dailyData, statusData) {
         new Chart(statusCtx, {
             type: 'doughnut',
             data: {
-                labels: statusData.map(function (d) { return d.status; }),
+                labels: statusData.map(function (d) { return d.Status; }),
                 datasets: [{
-                    data: statusData.map(function (d) { return d.count; }),
+                    data: statusData.map(function (d) { return d.Count; }),
                     backgroundColor: statusData.map(function (d) {
-                        return colors[d.status] || '#6c757d';
+                        return colors[d.Status] || '#6c757d';
                     }),
                     borderWidth: 2,
                     borderColor: '#fff'

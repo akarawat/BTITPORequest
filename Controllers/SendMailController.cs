@@ -11,20 +11,23 @@ namespace BTITPORequest.Controllers
     public class SendMailController
     {
         private readonly IConfiguration _config;
+        private readonly ILogger<SendMailController> _logger;
 
-        // ── appsettings.json keys (เหมือน BTQCDar) ──────────────────────────
         private string MailApiUrl => _config["TBCorApiServices:EmailSender"] ?? string.Empty;
         private string MailForm => _config["TBCorApiServices:MailForm"] ?? string.Empty;
         private string BearerToken => _config["TBCorApiServices:MailToken"] ?? "-dev_token-";
         private string SiteUrl => _config["AppSettings:MainAppBaseUrl"] ?? "https://it_porequest.berninathailand.com";
-
-        // Debug redirect
         private bool IsDebug => _config.GetValue<bool>("MailSettings:DebugMode", false);
         private string DebugEmail => _config["MailSettings:DebugEmail"] ?? string.Empty;
 
-        public SendMailController(IConfiguration config)
+        // Log path: logs/email/email_YYYYMMDD.log
+        private static string LogDir => System.IO.Path.Combine(
+            Directory.GetCurrentDirectory(), "logs", "email");
+
+        public SendMailController(IConfiguration config, ILogger<SendMailController> logger)
         {
             _config = config;
+            _logger = logger;
         }
 
         // ── Core send ─────────────────────────────────────────────────────────
@@ -32,18 +35,20 @@ namespace BTITPORequest.Controllers
                                           string htmlBody, string? ccEmail = null)
         {
             if (string.IsNullOrWhiteSpace(toEmail)) return false;
-            if (string.IsNullOrWhiteSpace(MailApiUrl))
-            {
-                Console.Error.WriteLine("[SendMail] TBCorApiServices:EmailSender is not configured.");
-                return false;
-            }
 
             string finalTo = IsDebug && !string.IsNullOrWhiteSpace(DebugEmail) ? DebugEmail : toEmail;
             string finalSubject = IsDebug ? $"[DEBUG → {toEmail}] {subject}" : subject;
 
-            Console.WriteLine(IsDebug
-                ? $"[SendMail:DEBUG] {toEmail} → {finalTo} | {subject}"
-                : $"[SendMail] → {finalTo} | {subject}");
+            // ── Write log BEFORE sending ──────────────────────────────────────
+            WriteLog($"SENDING | To: {finalTo} | Subject: {finalSubject}" +
+                     (IsDebug ? $" | [DEBUG, original: {toEmail}]" : ""));
+
+            if (string.IsNullOrWhiteSpace(MailApiUrl))
+            {
+                WriteLog($"SKIPPED | To: {finalTo} | TBCorApiServices:EmailSender not configured");
+                _logger.LogWarning("[SendMail] EmailSender not configured");
+                return false;
+            }
 
             try
             {
@@ -74,24 +79,68 @@ namespace BTITPORequest.Controllers
                     new MediaTypeWithQualityHeaderValue("application/json"));
 
                 var response = await client.PostAsync(MailApiUrl, strContent);
-                var body = await response.Content.ReadAsStringAsync();
+                var respBody = await response.Content.ReadAsStringAsync();
+                var statusCode = (int)response.StatusCode;
 
-                Console.WriteLine($"[SendMail] Status={(int)response.StatusCode} " +
-                                  $"Response={body.Substring(0, Math.Min(200, body.Length))}");
-
-                if (!response.IsSuccessStatusCode)
-                    Console.Error.WriteLine($"[SendMail] FAILED {(int)response.StatusCode} to {finalTo}");
+                if (response.IsSuccessStatusCode)
+                {
+                    WriteLog($"SUCCESS | To: {finalTo} | Subject: {finalSubject} | HTTP {statusCode}");
+                    _logger.LogInformation("[SendMail] OK {s} → {to}", statusCode, finalTo);
+                }
+                else
+                {
+                    WriteLog($"FAILED  | To: {finalTo} | Subject: {finalSubject} | HTTP {statusCode} | {respBody[..Math.Min(200, respBody.Length)]}");
+                    _logger.LogError("[SendMail] FAILED {s} → {to}", statusCode, finalTo);
+                }
 
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[SendMail] Exception → {finalTo}: {ex.Message}");
+                WriteLog($"ERROR   | To: {finalTo} | Subject: {finalSubject} | {ex.Message}");
+                _logger.LogError(ex, "[SendMail] Exception → {to}", finalTo);
                 return false;
             }
         }
 
+        // ── Write daily log file ──────────────────────────────────────────────
+        private static void WriteLog(string message)
+        {
+            try
+            {
+                Directory.CreateDirectory(LogDir);
+                var logFile = System.IO.Path.Combine(LogDir,
+                    $"email_{DateTime.Now:yyyyMMdd}.log");
+                System.IO.File.AppendAllText(logFile,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch { /* log failure must not break email flow */ }
+        }
+
         // ── PO Notification Templates ─────────────────────────────────────────
+
+        /// <summary>
+        /// [Step 0] Requester กด Submit → แจ้ง Requester (ตัวเอง) ว่า PO ถูก Submit แล้ว
+        /// </summary>
+        public Task<bool> NotifyRequesterSubmittedAsync(
+            string requesterEmail, string poNumber, string vendorCompany,
+            string subject, string issuerName, string grandTotal, int poId)
+            => SendAsync(
+                requesterEmail,
+                $"[IT PO] Your PO has been submitted — {poNumber}",
+                Build("Your PO Has Been Submitted", ("primary", "Requested"),
+                new[]
+                {
+                    ("PO Number",    poNumber),
+                    ("Vendor",       vendorCompany),
+                    ("Subject",      subject),
+                    ("Forwarded To", issuerName),
+                    ("Grand Total",  $"฿ {grandTotal}")
+                },
+                $"{SiteUrl}/PORequest/Detail/{poId}",
+                "View PO Status",
+                "Your IT Purchase Order has been submitted and is now pending issuance. You will be notified when the process is complete.",
+                greeting: "Dear Requester,"));
 
         /// <summary>
         /// [Step 1] Requester กด Submit → แจ้ง Issuer ให้ Issue PO
@@ -115,7 +164,8 @@ namespace BTITPORequest.Controllers
                 },
                 $"{SiteUrl}/PORequest/Detail/{poId}",
                 "Issue Document",
-                "You are assigned as the Issuer for this IT Purchase Order. Please review and issue."));
+                "You are assigned as the Issuer for this IT Purchase Order. Please review and issue.",
+                greeting: "Dear Issuer,"));
 
         /// <summary>
         /// [Step 2] Issuer กด Issue → แจ้ง Approver ให้ Authorize PO
@@ -137,18 +187,19 @@ namespace BTITPORequest.Controllers
                 },
                 $"{SiteUrl}/PORequest/Detail/{poId}",
                 "Authorize Document",
-                "You are assigned as the Approver for this IT Purchase Order. Please review and authorize."));
+                "You are assigned as the Approver for this IT Purchase Order. Please review and authorize.",
+                greeting: "Dear Manager,"));
 
         /// <summary>
-        /// [Step 3] Approver กด Approve → แจ้ง Requester ว่า PO Completed
+        /// [Step 3] Approver กด Approve → แจ้ง Requester ว่า PO Completed + ผลการอนุมัติ
         /// </summary>
         public Task<bool> NotifyCompletedAsync(
             string requesterEmail, string poNumber, string vendorCompany,
             string subject, string approverName, string grandTotal, int poId)
             => SendAsync(
                 requesterEmail,
-                $"[IT PO] Approved & Completed — {poNumber}",
-                Build("Your PO Has Been Fully Approved", ("success", "Completed"),
+                $"[IT PO] ✅ Approved & Completed — {poNumber}",
+                Build("Your PO Has Been Approved", ("success", "✅ Completed"),
                 new[]
                 {
                     ("PO Number",   poNumber),
@@ -156,11 +207,13 @@ namespace BTITPORequest.Controllers
                     ("Subject",     subject),
                     ("Approved By", approverName),
                     ("Grand Total", $"฿ {grandTotal}"),
+                    ("Result",      "✅ Approved — Document is complete"),
                     ("Date",        DateTime.Now.ToString("dd/MM/yyyy HH:mm"))
                 },
                 $"{SiteUrl}/PORequest/Detail/{poId}",
                 "Download PDF",
-                "Your IT Purchase Order has been fully approved. You can now download the signed PDF."));
+                "Your IT Purchase Order has been fully approved. You can now download the signed PDF document.",
+                greeting: "Dear Requester,"));
 
         /// <summary>
         /// Approver กด Reject → แจ้ง Requester ว่าถูก Reject
@@ -184,7 +237,8 @@ namespace BTITPORequest.Controllers
                 },
                 $"{SiteUrl}/PORequest/Detail/{poId}",
                 "Revise & Resubmit",
-                "Please review the rejection remarks and revise your purchase order if necessary."));
+                "Please review the rejection remarks and revise your purchase order if necessary.",
+                greeting: "Dear Requester,"));
 
         /// <summary>
         /// แจ้ง Requester ว่า PO ถูก Issue แล้ว (ทราบความคืบหน้า)
@@ -206,13 +260,15 @@ namespace BTITPORequest.Controllers
                 },
                 $"{SiteUrl}/PORequest/Detail/{poId}",
                 "View PO",
-                "Your IT Purchase Order has been issued and is now pending final authorization."));
+                "Your IT Purchase Order has been issued and is now pending final authorization.",
+                greeting: "Dear Requester,"));
 
 
-        // ── HTML builder (เหมือน BTQCDar ทุกอย่าง) ──────────────────────────
+        // ── HTML builder ──────────────────────────────────────────────────────
         private static string Build(string title, (string color, string label) badge,
             (string label, string value)[] rows, string actionUrl,
-            string actionLabel, string footer)
+            string actionLabel, string footer,
+            string greeting = "Dear Manager,")
         {
             var rowHtml = new StringBuilder();
             foreach (var (lbl, val) in rows)
@@ -247,6 +303,8 @@ namespace BTITPORequest.Controllers
 
   <!-- Body -->
   <tr><td style='padding:28px 32px 24px;'>
+    <p style='margin:0 0 16px;color:#444;font-size:14px;'>{greeting}</p>
+    <p style='margin:0 0 16px;color:#555;font-size:13px;'>The document is ready for review.</p>
     <h2 style='margin:0 0 12px;color:#1a1a1a;font-size:19px;'>{title}</h2>
     <span style='display:inline-block;padding:4px 16px;border-radius:20px;
                  background:{colors.GetValueOrDefault(badge.color, "#6c757d")};
@@ -265,9 +323,13 @@ namespace BTITPORequest.Controllers
   </td></tr>
 
   <!-- Footer -->
-  <tr><td style='padding:14px 32px;border-top:1px solid #f0f0f0;color:#aaa;font-size:11px;line-height:1.6;'>
+  <tr><td style='padding:14px 32px;border-top:1px solid #f0f0f0;color:#aaa;font-size:11px;line-height:1.8;'>
     {System.Net.WebUtility.HtmlEncode(footer)}<br>
-    This is an automated notification from BTITPORequest. Please do not reply.
+    This is an automated notification from BTITPORequest. Please do not reply.<br><br>
+    <span style='color:#888;font-size:11px;'>
+      Best Regards,<br>
+      <strong style='color:#1a5676;'>Powered by IT. Bernina Thailand.</strong>
+    </span>
   </td></tr>
 
 </table></td></tr></table>

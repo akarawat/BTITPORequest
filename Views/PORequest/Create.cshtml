@@ -200,7 +200,8 @@
                         </label>
                         @if (Model.Issuers.Any())
                         {
-                            <select name="selectedIssuerSam" class="form-select" id="issuerSelect">
+                            <select name="selectedIssuerSam" class="form-select @(ViewData.ModelState["selectedIssuerSam"]?.Errors.Count > 0 ? "is-invalid" : "")"
+                                    id="issuerSelect" required>
                                 <option value="">— เลือกผู้ Issue —</option>
                                 @foreach (var u in Model.Issuers)
                                 {
@@ -210,10 +211,13 @@
                                             data-dept="@u.Department">
                                         @u.FullName
                                         @if (!string.IsNullOrEmpty(u.Department))
-                                        { <text> — @u.Department</text> }
+                                        {
+                                            <text> — @u.Department</text>
+                                        }
                                     </option>
                                 }
                             </select>
+                            <div class="invalid-feedback">กรุณาเลือกผู้ Issue ก่อน</div>
                         }
                         else
                         {
@@ -234,7 +238,8 @@
                         </label>
                         @if (Model.Approvers.Any())
                         {
-                            <select name="selectedApprover1Sam" class="form-select" id="approverSelect">
+                            <select name="selectedApprover1Sam" class="form-select @(ViewData.ModelState["selectedApprover1Sam"]?.Errors.Count > 0 ? "is-invalid" : "")"
+                                    id="approverSelect" required>
                                 <option value="">— เลือกผู้อนุมัติ —</option>
                                 @foreach (var u in Model.Approvers)
                                 {
@@ -244,10 +249,13 @@
                                             data-dept="@u.Department">
                                         @u.FullName
                                         @if (!string.IsNullOrEmpty(u.Department))
-                                        { <text> — @u.Department</text> }
+                                        {
+                                            <text> — @u.Department</text>
+                                        }
                                     </option>
                                 }
                             </select>
+                            <div class="invalid-feedback">กรุณาเลือกผู้อนุมัติก่อน</div>
                         }
                         else
                         {
@@ -295,5 +303,45 @@
     <script>
         var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
         initPOForm(initialItems);
+    </script>
+    <script>
+        // ── Client-side: บังคับเลือก Issuer + Approver ก่อน Submit ──
+        $(function () {
+        function validateWorkflow() {
+        var ok = true;
+        if ($('#issuerSelect').length) {
+        if (!$('#issuerSelect').val()) {
+        $('#issuerSelect').addClass('is-invalid'); ok = false;
+        } else {
+        $('#issuerSelect').removeClass('is-invalid').addClass('is-valid');
+        }
+        }
+        if ($('#approverSelect').length) {
+        if (!$('#approverSelect').val()) {
+        $('#approverSelect').addClass('is-invalid'); ok = false;
+        } else {
+        $('#approverSelect').removeClass('is-invalid').addClass('is-valid');
+        }
+        }
+        return ok;
+        }
+
+        // Real-time validation เมื่อเปลี่ยน dropdown
+        $('#issuerSelect, #approverSelect').on('change', validateWorkflow);
+
+        // ตรวจก่อน form submit ทุกปุ่ม
+        $('form').on('submit', function (e) {
+        if (!validateWorkflow()) {
+        e.preventDefault();
+        var $card = $('#issuerSelect, #approverSelect').filter('.is-invalid')
+        .first().closest('.card');
+        if ($card.length) {
+        $('html,body').animate({ scrollTop: $card.offset().top - 80 }, 300);
+        $card.addClass('border-danger');
+        setTimeout(function () { $card.removeClass('border-danger'); }, 1800);
+        }
+        }
+        });
+        });
     </script>
 }

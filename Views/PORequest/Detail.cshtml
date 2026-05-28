@@ -44,6 +44,59 @@
                 <i class="bi bi-printer me-1"></i>Print (Blank Form)
             </a>
         }
+        @{
+            var currentRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        }
+        @if (currentRole == "Admin")
+        {
+            <!-- Admin: Manual Email Send -->
+            <div class="btn-group btn-group-sm" id="manualEmailGroup">
+                <button class="btn btn-outline-warning dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-envelope-arrow-up me-1"></i>Send Email
+                </button>
+                <ul class="dropdown-menu">
+                    @if ((int)Model.Status >= 1)
+                    {
+                        <li>
+                            <button class="dropdown-item btn-manual-email" data-type="issuer">
+                                <i class="bi bi-send me-2 text-info"></i>Notify Issuer
+                            </button>
+                        </li>
+                    }
+                    @if ((int)Model.Status >= 2)
+                    {
+                        <li>
+                            <button class="dropdown-item btn-manual-email" data-type="approver">
+                                <i class="bi bi-send me-2 text-warning"></i>Notify Approver
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item btn-manual-email" data-type="requester">
+                                <i class="bi bi-send me-2 text-primary"></i>Notify Requester (Issued)
+                            </button>
+                        </li>
+                    }
+                    @if (Model.Status == POStatus.Completed)
+                    {
+                        <li>
+                            <button class="dropdown-item btn-manual-email" data-type="completed">
+                                <i class="bi bi-send-check me-2 text-success"></i>Notify Requester (Completed)
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Email Send Result Toast -->
+<div id="emailToast" class="toast align-items-center border-0 position-fixed bottom-0 end-0 m-3"
+     role="alert" style="z-index:9999;">
+    <div class="d-flex">
+        <div class="toast-body fw-semibold" id="emailToastBody"></div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
 </div>
 
@@ -86,8 +139,10 @@
                     <tr><td class="fw-semibold py-1">Company:</td><td>@Model.VendorCompany</td></tr>
                     <tr><td class="fw-semibold py-1">Address:</td><td>@Model.VendorAddress</td></tr>
                     <tr>
-                        <td class="fw-semibold py-1">Tel No.:</td><td>@Model.VendorTel</td>
-                        <td class="fw-semibold py-1">Fax No.:</td><td>@Model.VendorFax</td>
+                        <td class="fw-semibold py-1">Tel No.:</td>
+                        <td>@Model.VendorTel</td>
+                        <td class="fw-semibold py-1">Fax No.:</td>
+                        <td>@Model.VendorFax</td>
                     </tr>
                     <tr><td class="fw-semibold py-1">E-mail:</td><td>@Model.VendorEmail</td></tr>
                     <tr><td class="fw-semibold py-1">Ref.:</td><td>@Model.RefNo</td></tr>
@@ -166,7 +221,7 @@
                     @* Supplier *@
                     <div class="col-3">
                         <div class="border rounded p-2 bg-light" style="min-height:90px;">
-                            <div class="small fw-semibold text-muted mb-2">For Supplier<br/>Sign &amp; Feedback</div>
+                            <div class="small fw-semibold text-muted mb-2">For Supplier<br />Sign &amp; Feedback</div>
                             <div style="height:38px;border:1px dashed #ccc;border-radius:4px;"></div>
                         </div>
                     </div>
@@ -174,7 +229,7 @@
                     @* Requested *@
                     @{
                         bool reqSigned = HasSigned(Model.RequesterSignatureBase64, Model.RequesterSignatureImage);
-                        string reqSam  = Model.RequesterSam;
+                        string reqSam = Model.RequesterSam;
                         bool reqHasStatus = Model.Status != POStatus.Draft;
                     }
                     <div class="col-3">
@@ -223,7 +278,7 @@
                     @{
                         bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
                         bool issPending = !issSigned && !string.IsNullOrEmpty(Model.PreAssignedIssuerSam);
-                        string issSam  = !string.IsNullOrEmpty(Model.IssuerSam)
+                        string issSam = !string.IsNullOrEmpty(Model.IssuerSam)
                                          ? Model.IssuerSam
                                          : Model.PreAssignedIssuerSam ?? "";
                     }
@@ -293,11 +348,11 @@
 
                     @* Authorized *@
                     @{
-                        var authName  = !string.IsNullOrEmpty(Model.Approver2Name)  ? Model.Approver2Name  : Model.Approver1Name  ?? "";
+                        var authName = !string.IsNullOrEmpty(Model.Approver2Name) ? Model.Approver2Name : Model.Approver1Name ?? "";
                         var authTitle = !string.IsNullOrEmpty(Model.Approver2Title) ? Model.Approver2Title : Model.Approver1Title ?? "";
-                        var authImg   = !string.IsNullOrEmpty(Model.Approver2SignatureImage)  ? Model.Approver2SignatureImage  : Model.Approver1SignatureImage  ?? "";
-                        var authSig   = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
-                        var authDate  = Model.Approver2Date ?? Model.Approver1Date;
+                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage) ? Model.Approver2SignatureImage : Model.Approver1SignatureImage ?? "";
+                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
+                        var authDate = Model.Approver2Date ?? Model.Approver1Date;
                         bool authSigned = HasSigned(authSig, authImg);
                         bool authPending = !authSigned && !string.IsNullOrEmpty(Model.PreAssignedApprover1Sam);
 
@@ -439,14 +494,15 @@
                 <div class="bt-workflow">
                     @foreach (var (label, status, icon, color) in steps)
                     {
-                        bool isDone    = (int)Model.Status > (int)status || Model.Status == status;
+                        bool isDone = (int)Model.Status > (int)status || Model.Status == status;
                         bool isCurrent = Model.Status == status;
 
                         // แสดงชื่อผู้รับผิดชอบที่ pre-assign ไว้
-                        string assignedPerson = status switch {
-                            POStatus.Issued     => Model.IssuerName ?? Model.PreAssignedIssuerSam,
+                        string assignedPerson = status switch
+                        {
+                            POStatus.Issued => Model.IssuerName ?? Model.PreAssignedIssuerSam,
                             POStatus.Authorized => Model.Approver1Name ?? Model.PreAssignedApprover1Sam,
-                            POStatus.Completed  => Model.Approver2Name ?? Model.PreAssignedApprover2Sam,
+                            POStatus.Completed => Model.Approver2Name ?? Model.PreAssignedApprover2Sam,
                             _ => ""
                         };
 
@@ -507,42 +563,82 @@
 </div>
 
 @section Scripts {
-<style>
-@@keyframes spin { to { transform: rotate(360deg); } }
-.spin { display:inline-block; animation: spin 1s linear infinite; }
-</style>
-<script>
-// ── Lazy-fetch signature images ─────────────────────────────
-$(function () {
-    // ดึง signature image สำหรับทุก .sig-lazy element
-    $('.sig-lazy').each(function () {
-        var $el  = $(this);
-        var sam  = $el.data('sam');
-        if (!sam) { $el.html(''); return; }
-
-        $.ajax({
-            url: '/api/signature/image/' + encodeURIComponent(sam),
-            method: 'GET',
-            success: function (res) {
-                if (res && res.imageBase64) {
-                    var img = $('<img>')
-                        .attr('src', 'data:image/png;base64,' + res.imageBase64)
-                        .attr('alt', 'Signature')
-                        .css({ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' })
-                        .addClass('mb-1');
-                    $el.replaceWith(img);
-                    // อัปเดต border สีเขียว
-                    $el.closest('.border').addClass('border-success border-2');
-                } else {
-                    $el.html('');
-                }
-            },
-            error: function () {
-                // ไม่มีลายเซ็น — ไม่แสดงอะไร
-                $el.html('');
+    <style>
+        @@keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
+        }
+
+        .spin {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+    <script>
+        // ── Lazy-fetch signature images ─────────────────────────────
+        $(function () {
+            // ดึง signature image สำหรับทุก .sig-lazy element
+            $('.sig-lazy').each(function () {
+                var $el  = $(this);
+                var sam  = $el.data('sam');
+                if (!sam) { $el.html(''); return; }
+
+                $.ajax({
+                    url: '/api/signature/image/' + encodeURIComponent(sam),
+                    method: 'GET',
+                    success: function (res) {
+                        if (res && res.imageBase64) {
+                            var img = $('<img>')
+                                .attr('src', 'data:image/png;base64,' + res.imageBase64)
+                                .attr('alt', 'Signature')
+                                .css({ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' })
+                                .addClass('mb-1');
+                            $el.replaceWith(img);
+                            // อัปเดต border สีเขียว
+                            $el.closest('.border').addClass('border-success border-2');
+                        } else {
+                            $el.html('');
+                        }
+                    },
+                    error: function () {
+                        // ไม่มีลายเซ็น — ไม่แสดงอะไร
+                        $el.html('');
+                    }
+                });
+            });
         });
-    });
-});
-</script>
+
+            // ── Manual Email Send ────────────────────────────────────
+            var $emailToast = $('#emailToast');
+            var emailToast  = new bootstrap.Toast($emailToast[0], { delay: 4000 });
+            var poId        = @Model.POId;
+
+            $('.btn-manual-email').on('click', function () {
+                var type  = $(this).data('type');
+                var label = $(this).text().trim();
+                if (!confirm('ส่ง email: ' + label + ' ?')) return;
+
+                var $btn = $(this);
+                $btn.prop('disabled', true);
+
+                $.ajax({
+                    url: '/PORequest/ManualSendEmail',
+                    method: 'POST',
+                    data: { id: poId, type: type },
+                    success: function (res) {
+                        $('#emailToastBody').text(res.message);
+                        $emailToast.removeClass('text-bg-success text-bg-danger')
+                                   .addClass(res.success ? 'text-bg-success' : 'text-bg-danger');
+                        emailToast.show();
+                    },
+                    error: function () {
+                        $('#emailToastBody').text('Server error — กรุณาลองใหม่');
+                        $emailToast.addClass('text-bg-danger');
+                        emailToast.show();
+                    },
+                    complete: function () { $btn.prop('disabled', false); }
+                });
+            });
+    </script>
 }
