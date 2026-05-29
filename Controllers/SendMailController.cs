@@ -304,7 +304,8 @@ namespace BTITPORequest.Controllers
   <!-- Body -->
   <tr><td style='padding:28px 32px 24px;'>
     <p style='margin:0 0 16px;color:#444;font-size:14px;'>{greeting}</p>
-    <p style='margin:0 0 16px;color:#555;font-size:13px;'>The document is ready for review.</p>
+    <p style='margin:0 0 16px;color:#555;font-size:13px;'>
+        {System.Net.WebUtility.HtmlEncode(footer)}<br> The document is ready for review.</p>
     <h2 style='margin:0 0 12px;color:#1a1a1a;font-size:19px;'>{title}</h2>
     <span style='display:inline-block;padding:4px 16px;border-radius:20px;
                  background:{colors.GetValueOrDefault(badge.color, "#6c757d")};
@@ -323,10 +324,10 @@ namespace BTITPORequest.Controllers
   </td></tr>
 
   <!-- Footer -->
-  <tr><td style='padding:14px 32px;border-top:1px solid #f0f0f0;color:#aaa;font-size:11px;line-height:1.8;'>
-    {System.Net.WebUtility.HtmlEncode(footer)}<br>
-    This is an automated notification from BTITPORequest. Please do not reply.<br><br>
-    <span style='color:#888;font-size:11px;'>
+  <tr><td style='padding:14px 32px;border-top:1px solid #f0f0f0;color:#aaa;font-size:16px;line-height:1.8;'>
+
+    This is an automated notification from BTITPORequest. Please do not reply.<br>
+    <span style='color:#888;font-size:16px;'>
       Best Regards,<br>
       <strong style='color:#1a5676;'>Powered by IT. Bernina Thailand.</strong>
     </span>

@@ -97,7 +97,7 @@ namespace BTITPORequest.Controllers
             // Line items validation เท่านั้น — Issuer/Approver ตรวจโดย JS แล้ว
             if (lineItems.Count == 0)
             {
-                var issuers = await _poService.GetUsersByRoleAsync("Issuer");
+                var issuers   = await _poService.GetUsersByRoleAsync("Issuer");
                 var approvers = await _poService.GetUsersByRoleAsync("Approver");
                 ModelState.AddModelError("", "กรุณาเพิ่มรายการสินค้า (Line Items) อย่างน้อย 1 รายการ");
                 return View(new POCreateViewModel
@@ -107,7 +107,7 @@ namespace BTITPORequest.Controllers
                     CurrentUserName = user.FullName,
                     Issuers = issuers,
                     Approvers = approvers,
-                    SelectedIssuerSam = selectedIssuerSam,
+                    SelectedIssuerSam    = selectedIssuerSam,
                     SelectedApprover1Sam = selectedApprover1Sam,
                     SelectedApprover2Sam = selectedApprover2Sam
                 });
@@ -174,6 +174,21 @@ namespace BTITPORequest.Controllers
                         && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
                             || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
 
+            // CanRejectIssue: Issuer reject กลับ Requester (Status=1)
+            // Admin reject ได้ทุก pending status
+            po.CanRejectIssue = po.Status == POStatus.Requested
+                && (user.Role == "Admin"
+                    || (user.Role == "Issuer"
+                        && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
+                            || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+
+            // CanRejectApprove: Admin หรือ Approver reject ตอน Issued (Status=2)
+            po.CanRejectApprove = po.Status == POStatus.Issued
+                && (user.Role == "Admin"
+                    || (user.Role == "Approver"
+                        && (string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
+                            || po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+
             // CanApprove: Approver role + PreAssigned check → Issued → Completed โดยตรง
             po.CanApprove1 = po.Status == POStatus.Issued
                 && (user.Role == "Admin"
@@ -199,6 +214,62 @@ namespace BTITPORequest.Controllers
             if (po == null) return NotFound();
             await DoSubmitAsync(id, po.PONumber, user);
             TempData["Success"] = "PO submitted & digitally signed.";
+            return RedirectToAction("Detail", new { id });
+        }
+
+        // ── REJECT APPROVE (Approver/Admin ส่งกลับ Requester) ─
+        [HttpGet]
+        public async Task<IActionResult> RejectApprove(int id)
+        {
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            return View("RejectIssue", new POApproveViewModel { PO = po, ApprovalLevel = 1 });
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectApprove(int id, string? remark)
+        {
+            var user = CurrentUser;
+            var po   = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+
+            await _poService.RejectPOAsync(id, 1, user.SamAcc, user.FullName, remark ?? "");
+
+            var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+            if (!string.IsNullOrEmpty(reqEmail))
+                _ = _mail.NotifyRejectedAsync(reqEmail, po.PONumber, po.VendorCompany,
+                        po.Subject, user.FullName, remark ?? "", id, 1);
+
+            TempData["Warning"] = "PO rejected — returned to Requester for revision.";
+            return RedirectToAction("Detail", new { id });
+        }
+
+        // ── REJECT ISSUE (Issuer ส่งกลับ Requester) ──────────
+        [HttpGet]
+        public async Task<IActionResult> RejectIssue(int id)
+        {
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            return View(new POApproveViewModel { PO = po, ApprovalLevel = 0 });
+        }
+
+        [HttpPost][ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectIssue(int id, string? remark)
+        {
+            var user = CurrentUser;
+            var po   = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+
+            // Reject กลับ Status = -1 (level 1 = Issuer reject)
+            await _poService.RejectPOAsync(id, 1, user.SamAcc, user.FullName, remark ?? "");
+
+            // แจ้ง Requester
+            var reqEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+            if (!string.IsNullOrEmpty(reqEmail))
+                _ = _mail.NotifyRejectedAsync(reqEmail, po.PONumber, po.VendorCompany,
+                        po.Subject, user.FullName, remark ?? "", id, 1);
+
+            TempData["Warning"] = "PO rejected — returned to Requester for revision.";
             return RedirectToAction("Detail", new { id });
         }
 

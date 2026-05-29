@@ -130,6 +130,21 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: .9rem; }
     box-shadow: var(--bt-shadow);
     display: flex; flex-direction: column; align-items: center; gap: .4rem;
     text-align: center;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.bt-stat-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--bt-radius);
+}
+.bt-stat-card-link:hover .bt-stat-card {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.12);
+    cursor: pointer;
+}
+.bt-stat-card-link:hover .bt-stat-label {
+    color: var(--bt-primary);
 }
 .bt-stat-icon {
     width: 44px; height: 44px;

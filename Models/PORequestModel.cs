@@ -118,7 +118,9 @@ namespace BTITPORequest.Models
         public bool CanEdit { get; set; }
         public bool CanSubmit { get; set; }
         public bool CanIssue { get; set; }
+        public bool CanRejectIssue { get; set; }    // Issuer/Admin reject → Requester
         public bool CanApprove1 { get; set; }
+        public bool CanRejectApprove { get; set; }  // Approver/Admin reject → Requester
         public bool CanApprove2 { get; set; }
         public bool CanDownloadPDF { get; set; }
     }

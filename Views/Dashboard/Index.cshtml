@@ -29,11 +29,13 @@
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-2">
-        <div class="bt-stat-card">
-            <div class="bt-stat-icon bg-primary-subtle text-primary"><i class="bi bi-file-earmark-text"></i></div>
-            <div class="bt-stat-value">@Model.TotalPO</div>
-            <div class="bt-stat-label">Total POs</div>
-        </div>
+        <a asp-controller="PORequest" asp-action="Index" class="bt-stat-card-link">
+            <div class="bt-stat-card">
+                <div class="bt-stat-icon bg-primary-subtle text-primary"><i class="bi bi-file-earmark-text"></i></div>
+                <div class="bt-stat-value">@Model.TotalPO</div>
+                <div class="bt-stat-label">Total POs</div>
+            </div>
+        </a>
     </div>
     <div class="col-6 col-lg-2">
         <div class="bt-stat-card">
@@ -43,32 +45,40 @@
         </div>
     </div>
     <div class="col-6 col-lg-2">
-        <div class="bt-stat-card">
-            <div class="bt-stat-icon bg-warning-subtle text-warning"><i class="bi bi-hourglass-split"></i></div>
-            <div class="bt-stat-value">@Model.PendingCount</div>
-            <div class="bt-stat-label">Pending</div>
-        </div>
+        <a asp-controller="PORequest" asp-action="Index" asp-route-status="pending" class="bt-stat-card-link">
+            <div class="bt-stat-card">
+                <div class="bt-stat-icon bg-warning-subtle text-warning"><i class="bi bi-hourglass-split"></i></div>
+                <div class="bt-stat-value">@Model.PendingCount</div>
+                <div class="bt-stat-label">Pending</div>
+            </div>
+        </a>
     </div>
     <div class="col-6 col-lg-2">
-        <div class="bt-stat-card">
-            <div class="bt-stat-icon bg-success-subtle text-success"><i class="bi bi-check-circle"></i></div>
-            <div class="bt-stat-value">@Model.CompletedCount</div>
-            <div class="bt-stat-label">Completed</div>
-        </div>
+        <a asp-controller="PORequest" asp-action="Index" asp-route-status="6" class="bt-stat-card-link">
+            <div class="bt-stat-card">
+                <div class="bt-stat-icon bg-success-subtle text-success"><i class="bi bi-check-circle"></i></div>
+                <div class="bt-stat-value">@Model.CompletedCount</div>
+                <div class="bt-stat-label">Completed</div>
+            </div>
+        </a>
     </div>
     <div class="col-6 col-lg-2">
-        <div class="bt-stat-card">
-            <div class="bt-stat-icon bg-danger-subtle text-danger"><i class="bi bi-x-circle"></i></div>
-            <div class="bt-stat-value">@Model.RejectedCount</div>
-            <div class="bt-stat-label">Rejected</div>
-        </div>
+        <a asp-controller="PORequest" asp-action="Index" asp-route-status="-1" class="bt-stat-card-link">
+            <div class="bt-stat-card">
+                <div class="bt-stat-icon bg-danger-subtle text-danger"><i class="bi bi-x-circle"></i></div>
+                <div class="bt-stat-value">@Model.RejectedCount</div>
+                <div class="bt-stat-label">Rejected</div>
+            </div>
+        </a>
     </div>
     <div class="col-6 col-lg-2">
-        <div class="bt-stat-card">
-            <div class="bt-stat-icon bg-secondary-subtle text-secondary"><i class="bi bi-pencil-square"></i></div>
-            <div class="bt-stat-value">@Model.DraftCount</div>
-            <div class="bt-stat-label">Drafts</div>
-        </div>
+        <a asp-controller="PORequest" asp-action="Index" asp-route-status="0" class="bt-stat-card-link">
+            <div class="bt-stat-card">
+                <div class="bt-stat-icon bg-secondary-subtle text-secondary"><i class="bi bi-pencil-square"></i></div>
+                <div class="bt-stat-value">@Model.DraftCount</div>
+                <div class="bt-stat-label">Drafts</div>
+            </div>
+        </a>
     </div>
 </div>
 

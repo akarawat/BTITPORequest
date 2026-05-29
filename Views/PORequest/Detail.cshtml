@@ -447,11 +447,25 @@
                             </button>
                         </form>
                     }
+                    @if (Model.CanRejectIssue)
+                    {
+                        <a asp-action="RejectIssue" asp-route-id="@Model.POId"
+                           class="btn btn-outline-danger w-100">
+                            <i class="bi bi-x-circle me-2"></i>Reject
+                        </a>
+                    }
                     @if (Model.CanApprove1)
                     {
                         <a asp-action="Approve" asp-route-id="@Model.POId" asp-route-level="1"
                            class="btn btn-success w-100">
                             <i class="bi bi-check-circle-fill me-2"></i>Approve &amp; Complete
+                        </a>
+                    }
+                    @if (Model.CanRejectApprove)
+                    {
+                        <a asp-action="RejectApprove" asp-route-id="@Model.POId"
+                           class="btn btn-outline-danger w-100">
+                            <i class="bi bi-x-circle me-2"></i>Reject
                         </a>
                     }
                 </div>

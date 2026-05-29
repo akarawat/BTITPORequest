@@ -79,7 +79,7 @@
 
         <div class="bt-sidebar-footer px-3 py-2">
             <div class="d-flex align-items-center gap-2">
-                <div class="bt-avatar">@(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "U")</div>
+                <div class="bt-avatar">@(User.Identity?.Name?.Length > 0 ? User.Identity.Name.Substring(0, 1).ToUpper() : "U")</div>
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="text-white fw-semibold text-truncate" style="font-size:.8rem;">
                         @User.FindFirst("samacc")?.Value

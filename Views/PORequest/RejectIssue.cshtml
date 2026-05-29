@@ -1,0 +1,84 @@
+@model BTITPORequest.Models.POApproveViewModel
+@{
+    ViewData["Title"] = $"Reject PO — {Model.PO.PONumber}";
+    ViewData["BreadcrumbItems"] = new List<(string, string?)>
+    {
+        ("Dashboard", "/"),
+        ("PO Requests", "/PORequest"),
+        (Model.PO.PONumber, $"/PORequest/Detail/{Model.PO.POId}"),
+        ("Reject", null)
+    };
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-x-circle me-2 text-danger"></i>
+                    Reject PO — @(Model.ApprovalLevel == 0 ? "Issuer Reject" : "Approver Reject")
+                </h5>
+                <p class="text-muted mb-0 mt-1" style="font-size:.85rem;">
+                    PO: <strong>@Model.PO.PONumber</strong> &bull;
+                    @Model.PO.VendorCompany &bull;
+                    Grand Total: <strong>@Model.PO.GrandTotal.ToString("N2") Baht</strong>
+                </p>
+            </div>
+            <div class="card-body">
+
+                <!-- Summary -->
+                <div class="alert alert-light border mb-4">
+                    <div class="row g-2">
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Company</div>
+                            <div class="fw-semibold">@Model.PO.VendorCompany</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Subject</div>
+                            <div class="fw-semibold">@Model.PO.Subject</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Requested By</div>
+                            <div class="fw-semibold">@Model.PO.RequesterName</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="small text-muted">Grand Total</div>
+                            <div class="fw-bold text-primary fs-5">@Model.PO.GrandTotal.ToString("N2")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form asp-action="@(Model.ApprovalLevel == 0 ? "RejectIssue" : "RejectApprove")" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.PO.POId" />
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            เหตุผลที่ปฏิเสธ <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="remark" class="form-control" rows="4" required
+                                  placeholder="ระบุเหตุผลที่ส่งกลับ Requester..."></textarea>
+                        <div class="form-text text-muted">
+                            ข้อความนี้จะถูกส่งไปยัง Requester ทาง Email
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning py-2" style="font-size:.85rem;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        PO จะถูกส่งกลับไปยัง Requester และ Status จะเปลี่ยนเป็น <strong>Rejected</strong>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-x-circle me-2"></i>Confirm Reject
+                        </button>
+                        <a asp-action="Detail" asp-route-id="@Model.PO.POId"
+                           class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
