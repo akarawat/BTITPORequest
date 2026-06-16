@@ -405,4 +405,4 @@ C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x64\BTITPORequest.pdb
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x64\BTITPORequest.genruntimeconfig.cache
 C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\obj\Release\net8.0\win-x64\ref\BTITPORequest.dll
-C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscordaccore_amd64_amd64_8.0.2726.22922.dll
+C:\CLAUDE PROJECT\ITPORequest\ITPORequest\BTITPORequest\bin\Release\net8.0\win-x64\mscordaccore_amd64_amd64_8.0.2826.26413.dll

@@ -1,0 +1,219 @@
+@* _AttachmentPanel.cshtml — Reusable attachment widget
+   Usage: <partial name="_AttachmentPanel" model="poId" />
+*@
+@model int
+@{
+    var poId = Model;
+}
+
+<div class="card border-0 shadow-sm" id="attachmentPanel">
+    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pb-0">
+        <h6 class="fw-semibold mb-0">
+            <i class="bi bi-paperclip me-2 text-primary"></i>Attachments
+        </h6>
+        <span class="badge bg-secondary" id="attachCount">0</span>
+    </div>
+    <div class="card-body">
+
+        <!-- Upload Zone -->
+        <div id="uploadZone"
+             class="border border-dashed rounded p-3 text-center mb-3"
+             style="border-color:#ccc !important;background:#fafafa;cursor:pointer;transition:.2s;">
+            <i class="bi bi-cloud-arrow-up fs-3 text-muted d-block mb-1"></i>
+            <div class="text-muted" style="font-size:.85rem;">
+                คลิกหรือลาก PDF, JPG, PNG มาวางที่นี่
+            </div>
+            <div class="text-muted" style="font-size:.75rem;">สูงสุด 10 MB ต่อไฟล์</div>
+            <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png"
+                   multiple style="display:none;" />
+        </div>
+
+        <!-- Upload Progress -->
+        <div id="uploadProgress" style="display:none;" class="mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:6px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                         id="progressBar" style="width:0%"></div>
+                </div>
+                <span id="progressText" class="text-muted" style="font-size:.8rem;white-space:nowrap;">0%</span>
+            </div>
+        </div>
+
+        <!-- File List -->
+        <div id="attachmentList">
+            <div class="text-center text-muted py-3" id="noAttachMsg" style="font-size:.85rem;">
+                <i class="bi bi-inbox d-block fs-4 opacity-25 mb-1"></i>
+                ยังไม่มีไฟล์แนบ
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#uploadZone:hover, #uploadZone.drag-over {
+    border-color: var(--bt-primary) !important;
+    background: #f0f7ff !important;
+}
+.attach-item {
+    display:flex; align-items:center; gap:.6rem;
+    padding:.5rem .75rem; border-radius:6px;
+    border:1px solid #eee; margin-bottom:.4rem;
+    background:#fff; transition:.15s;
+}
+.attach-item:hover { background:#f8f9fa; }
+.attach-name { font-size:.85rem; font-weight:500; flex-grow:1; word-break:break-all; }
+.attach-meta { font-size:.72rem; color:#888; }
+</style>
+
+<script>
+// รอ jQuery โหลดก่อนใช้งาน (partial view render ก่อน @@section Scripts)
+function _initAttachPanel() {
+(function () {
+    var poId = @poId;
+    var $zone = $('#uploadZone');
+    var $input = $('#fileInput');
+    var $list  = $('#attachmentList');
+    var $count = $('#attachCount');
+    var $noMsg = $('#noAttachMsg');
+    var $prog  = $('#uploadProgress');
+    var $bar   = $('#progressBar');
+    var $pText = $('#progressText');
+
+    // ── Load existing attachments ─────────────────────────────
+    function loadAttachments() {
+        $.getJSON('/api/attachment/' + poId, function (data) {
+            $list.empty();
+            if (!data || data.length === 0) {
+                $list.append($noMsg);
+                $count.text('0');
+                return;
+            }
+            $count.text(data.length);
+            data.forEach(function (a) { $list.append(renderItem(a)); });
+        });
+    }
+
+    function renderItem(a) {
+        var icon = a.contentType && a.contentType.indexOf('pdf') >= 0
+                   ? 'bi-file-earmark-pdf text-danger'
+                   : 'bi-file-earmark-image text-primary';
+        var size = a.fileSize > 1048576
+                   ? (a.fileSize / 1048576).toFixed(1) + ' MB'
+                   : a.fileSize > 1024
+                   ? Math.round(a.fileSize / 1024) + ' KB'
+                   : a.fileSize + ' B';
+        return $('<div class="attach-item">').html(
+            '<i class="bi ' + icon + ' fs-5 flex-shrink-0"></i>' +
+            '<div class="flex-grow-1 overflow-hidden">' +
+              '<div class="attach-name text-truncate">' +
+                '<a href="/api/attachment/download/' + poId + '/' + a.attachId +
+                   '" target="_blank" class="text-decoration-none text-dark">' +
+                   $('<div>').text(a.fileName).html() + '</a></div>' +
+              '<div class="attach-meta">' + size + ' &bull; ' + a.uploadedBy + ' &bull; ' + a.uploadedAt + '</div>' +
+            '</div>' +
+            '<button class="btn btn-link btn-sm text-danger p-0 btn-del-attach" data-id="' + a.attachId + '" title="Delete">' +
+              '<i class="bi bi-trash"></i></button>'
+        );
+    }
+
+    // ── Upload file ───────────────────────────────────────────
+    function uploadFile(file) {
+        var allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        var okExt   = ['.pdf', '.jpg', '.jpeg', '.png'];
+        var ext     = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+        if (!okExt.includes(ext)) {
+            alert('ไฟล์ "' + file.name + '" ไม่รองรับ — เฉพาะ PDF, JPG, PNG เท่านั้น');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert('ไฟล์ "' + file.name + '" ใหญ่เกิน 10 MB');
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append('file', file);
+
+        $prog.show(); $bar.css('width', '0%'); $pText.text('0%');
+
+        $.ajax({
+            url: '/api/attachment/upload/' + poId,
+            method: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false,
+            xhr: function () {
+                var x = new XMLHttpRequest();
+                x.upload.addEventListener('progress', function (e) {
+                    if (e.lengthComputable) {
+                        var pct = Math.round(e.loaded / e.total * 100);
+                        $bar.css('width', pct + '%');
+                        $pText.text(pct + '%');
+                    }
+                });
+                return x;
+            },
+            success: function (res) {
+                $prog.hide();
+                $noMsg.detach();
+                $list.append(renderItem(res));
+                $count.text(parseInt($count.text() || 0) + 1);
+            },
+            error: function (xhr) {
+                $prog.hide();
+                var msg = xhr.responseJSON?.error || 'Upload failed';
+                alert(msg);
+            }
+        });
+    }
+
+    // ── Events ────────────────────────────────────────────────
+    // ป้องกัน infinite loop: input click bubble ขึ้น zone → zone trigger input อีก
+    $input.on('click', function (e) { e.stopPropagation(); });
+
+    $zone.on('click', function () { $input.click(); });
+
+    $input.on('change', function () {
+        Array.from(this.files).forEach(uploadFile);
+        this.value = '';
+    });
+
+    $zone.on('dragover', function (e) {
+        e.preventDefault(); $(this).addClass('drag-over');
+    }).on('dragleave drop', function (e) {
+        e.preventDefault(); $(this).removeClass('drag-over');
+        if (e.type === 'drop')
+            Array.from(e.originalEvent.dataTransfer.files).forEach(uploadFile);
+    });
+
+    $(document).on('click', '.btn-del-attach', function () {
+        var id  = $(this).data('id');
+        var $row = $(this).closest('.attach-item');
+        if (!confirm('ลบไฟล์นี้?')) return;
+        $.ajax({
+            url: '/api/attachment/' + id,
+            method: 'DELETE',
+            success: function () {
+                $row.fadeOut(200, function () {
+                    $row.remove();
+                    var n = parseInt($count.text()) - 1;
+                    $count.text(n);
+                    if (n <= 0) $list.append($noMsg);
+                });
+            },
+            error: function () { alert('ลบไม่สำเร็จ'); }
+        });
+    });
+
+    // ── Init ─────────────────────────────────────────────────
+    if (poId > 0) loadAttachments();
+})();
+}
+if (typeof $ !== 'undefined') {
+    _initAttachPanel();
+} else {
+    var _t = setInterval(function () {
+        if (typeof $ !== 'undefined') { clearInterval(_t); _initAttachPanel(); }
+    }, 30);
+}
+</script>

@@ -8,25 +8,33 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
+// Allow file uploads up to 10 MB
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB
+});
+builder.WebHost.ConfigureKestrel(k =>
+    k.Limits.MaxRequestBodySize = 10 * 1024 * 1024);
+
 // Cookie Auth — LoginPath ชี้ไป SSO redirect
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath       = "/Auth/SsoRedirect";
-        options.LogoutPath      = "/Auth/Logout";
+        options.LoginPath = "/Auth/SsoRedirect";
+        options.LogoutPath = "/Auth/Logout";
         options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan  = TimeSpan.FromHours(8);
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-        options.Cookie.Name     = "BTITPORequest.Auth";
+        options.Cookie.Name = "BTITPORequest.Auth";
     });
 
 // Session — ใช้ In-Memory (dev)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout         = TimeSpan.FromHours(8);
-    options.Cookie.HttpOnly     = true;
-    options.Cookie.IsEssential  = true;
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
 // HttpClient — BTDigitalSign API (5s connect timeout)

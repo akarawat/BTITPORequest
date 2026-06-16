@@ -293,6 +293,21 @@
                     </button>
                 </div>
             </div>
+
+            @* Attachment panel — แสดงเฉพาะ Draft PO ที่มี POId แล้ว *@
+            @if (Model.PO.POId > 0 && Model.PO.Status == BTITPORequest.Models.POStatus.Draft)
+            {
+                <partial name="_AttachmentPanel" model="Model.PO.POId" />
+            }
+            else if (Model.PO.POId == 0)
+            {
+                <div class="card border-0 shadow-sm mt-3">
+                    <div class="card-body text-center text-muted py-3" style="font-size:.82rem;">
+                        <i class="bi bi-paperclip me-1"></i>
+                        บันทึก Draft ก่อน เพื่อแนบไฟล์
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </form>
