@@ -35,9 +35,14 @@ namespace BTITPORequest.Controllers
             var from = dateFrom ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
             var to = dateTo ?? DateTime.Today;
 
-            var vm = await _poService.GetDashboardDataAsync(user.SamAcc, user.Role == "Admin", from, to);
-            vm.CurrentUserSam = user.SamAcc;
-            vm.CurrentUserName = user.FullName;
+            bool isAdmin = user.Role == "Admin";
+            var vm = await _poService.GetDashboardDataAsync(
+                user.SamAcc, isAdmin, from, to,
+                deptCode: string.IsNullOrEmpty(user.DeptCode) ? null : user.DeptCode);
+            vm.CurrentUserSam      = user.SamAcc;
+            vm.CurrentUserName     = user.FullName;
+            vm.CurrentUserDeptCode = user.DeptCode;
+            vm.IsAdmin             = isAdmin;
 
             return View(vm);
         }

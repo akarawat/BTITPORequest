@@ -19,7 +19,8 @@ namespace BTITPORequest.Services.Interfaces
     public interface IPOService
     {
         Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam,
-            string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "");
+            string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "",
+            string requesterDeptCode = "");
         Task<List<UserRoleModel>> GetUsersByRoleAsync(string roleName);
         Task UpdatePOAsync(PORequestModel po, List<POLineItemModel> lineItems);
         Task<PORequestModel?> GetPOByIdAsync(int poId);
@@ -37,8 +38,16 @@ namespace BTITPORequest.Services.Interfaces
         Task<bool> RejectPOAsync(int poId, int level,
             string approverSam, string approverName, string remark);
         Task<DashboardViewModel> GetDashboardDataAsync(
-            string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo);
+            string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo,
+            string? deptCode = null);
         Task<string> GeneratePONumberAsync();
+
+        // ── Email Logs ──────────────────────────────────────
+        Task LogEmailAsync(InsertEmailLogModel model);
+        Task<(int totalCount, List<EmailLogModel> logs)> GetEmailLogsAsync(
+            DateTime? dateFrom, DateTime? dateTo,
+            string? poNumber, string? mailType, bool? isSuccess,
+            int pageNum = 1, int pageSize = 50);
     }
 
     // ──────────────────────────────────────────────────────────

@@ -74,6 +74,12 @@
                         <i class="bi bi-building"></i> Vendor / Supplier
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="bt-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" && ViewContext.RouteData.Values["action"]?.ToString() == "EmailLogs" ? "active" : "")"
+                       asp-controller="Admin" asp-action="EmailLogs">
+                        <i class="bi bi-envelope-check"></i> Email Logs
+                    </a>
+                </li>
             }
         </ul>
 

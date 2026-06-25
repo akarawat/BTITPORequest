@@ -161,9 +161,9 @@ namespace BTITPORequest.Models
         public string SelectedApprover1Sam { get; set; } = string.Empty;
         public string SelectedApprover2Sam { get; set; } = string.Empty;
 
-        // Dropdown options — loaded from ITPO_UserRoles
-        public List<UserRoleModel> Issuers { get; set; } = new();
-        public List<UserRoleModel> Approvers { get; set; } = new();
+        // Dropdown options — loaded from HR (free assign, ไม่จำกัด role)
+        public List<HRUserModel> Issuers { get; set; } = new();
+        public List<HRUserModel> Approvers { get; set; } = new();
     }
 
     public class POListViewModel

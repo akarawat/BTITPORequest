@@ -1,5 +1,6 @@
 using BTITPORequest.Models;
 using BTITPORequest.Services.Interfaces;
+using iText.IO.Font;
 using iText.IO.Font.Constants;
 using iText.IO.Image;
 using iText.Kernel.Colors;
@@ -34,6 +35,29 @@ namespace BTITPORequest.Services
             _logger = logger;
         }
 
+        // ── Thai-capable font loader ────────────────────────────
+        // HELVETICA รองรับแค่ Latin — ถ้า vendor มีภาษาไทย จะไม่แสดง
+        // ใช้ Tahoma (มีใน Windows ทุกเครื่อง, รองรับไทย) แทน
+        private static readonly string[] FontPathsRegular = {
+            @"C:\Windows\Fonts\tahoma.ttf",
+            @"C:\Windows\Fonts\arial.ttf",
+        };
+        private static readonly string[] FontPathsBold = {
+            @"C:\Windows\Fonts\tahomabd.ttf",
+            @"C:\Windows\Fonts\arialbd.ttf",
+        };
+
+        private static PdfFont LoadThaiFont(string[] paths, string fallback)
+        {
+            foreach (var p in paths)
+            {
+                if (System.IO.File.Exists(p))
+                    return PdfFontFactory.CreateFont(p, PdfEncodings.IDENTITY_H,
+                           PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+            }
+            return PdfFontFactory.CreateFont(fallback);
+        }
+
         public async Task<byte[]> GeneratePOPdfAsync(PORequestModel po, string signerUsername, string signerFullName)
         {
             // 1. สร้าง PDF ด้วย iText7
@@ -65,8 +89,9 @@ namespace BTITPORequest.Services
             // Margin: บน 2.2cm (รูปหัว ~1.7cm + gap), ล่าง 2.5cm (รูปท้าย ~1.5cm + gap)
             doc.SetMargins(62f, 30f, 72f, 30f);
 
-            var fontR = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-            var fontB = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            // ใช้ Tahoma (รองรับภาษาไทย) แทน Helvetica
+            var fontR = LoadThaiFont(FontPathsRegular, StandardFonts.HELVETICA);
+            var fontB = LoadThaiFont(FontPathsBold, StandardFonts.HELVETICA_BOLD);
 
             // ── Header & Footer images via Page Event ─────────────
             var imgTopPath = System.IO.Path.Combine(
@@ -280,8 +305,9 @@ namespace BTITPORequest.Services
             // 1 cm = 28.35 pt
             doc.SetMargins(70.9f, 28.35f, 70.9f, 42.5f);
 
-            var fontR = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-            var fontB = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            // ใช้ Tahoma (รองรับภาษาไทย) แทน Helvetica
+            var fontR = LoadThaiFont(FontPathsRegular, StandardFonts.HELVETICA);
+            var fontB = LoadThaiFont(FontPathsBold, StandardFonts.HELVETICA_BOLD);
 
             // ── PO Number + Date ──────────────────────────────
             var titleTable = new Table(UnitValue.CreatePercentArray(new float[] { 50, 50 }))

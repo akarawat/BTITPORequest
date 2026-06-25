@@ -270,7 +270,8 @@
 
                     @* Issued *@
                     @{
-                        bool issSigned = HasSigned(Model.IssuerSignatureBase64, Model.IssuerSignatureImage);
+                        // issSigned = มีคนออก issue แล้วจริง (ไม่เช็คจาก signature field เพราะอาจ empty ถ้า API ล่ม)
+                        bool issSigned = !string.IsNullOrEmpty(Model.IssuerSam) && Model.IssuedDate.HasValue;
                         bool issPending = !issSigned && !string.IsNullOrEmpty(Model.PreAssignedIssuerSam);
                         string issSam = !string.IsNullOrEmpty(Model.IssuerSam)
                                          ? Model.IssuerSam
@@ -282,7 +283,7 @@
 
                             @if (issSigned)
                             {
-                                @* Always lazy-fetch จาก API เพื่อแสดงลายเซ็นล่าสุดเสมอ *@
+                                @* Lazy-fetch signature image จาก API (ไม่พึ่ง DB field) *@
                                 @if (!string.IsNullOrEmpty(Model.IssuerSam))
                                 {
                                     <div id="sig-img-iss" class="sig-lazy" data-sam="@Model.IssuerSam"
@@ -339,10 +340,10 @@
                     @{
                         var authName = !string.IsNullOrEmpty(Model.Approver2Name) ? Model.Approver2Name : Model.Approver1Name ?? "";
                         var authTitle = !string.IsNullOrEmpty(Model.Approver2Title) ? Model.Approver2Title : Model.Approver1Title ?? "";
-                        var authImg = !string.IsNullOrEmpty(Model.Approver2SignatureImage) ? Model.Approver2SignatureImage : Model.Approver1SignatureImage ?? "";
-                        var authSig = !string.IsNullOrEmpty(Model.Approver2SignatureBase64) ? Model.Approver2SignatureBase64 : Model.Approver1SignatureBase64 ?? "";
                         var authDate = Model.Approver2Date ?? Model.Approver1Date;
-                        bool authSigned = HasSigned(authSig, authImg);
+                        // authSigned = มีคนอนุมัติแล้วจริง (เช็คจาก Sam+Date ไม่ใช่ signature field)
+                        bool authSigned = (!string.IsNullOrEmpty(Model.Approver1Sam) && Model.Approver1Date.HasValue)
+                                       || (!string.IsNullOrEmpty(Model.Approver2Sam) && Model.Approver2Date.HasValue);
                         bool authPending = !authSigned && !string.IsNullOrEmpty(Model.PreAssignedApprover1Sam);
 
                         // sam จริงถ้า Approve แล้ว ไม่งั้น fallback ไป PreAssigned

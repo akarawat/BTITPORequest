@@ -25,7 +25,8 @@ namespace BTITPORequest.Services
         }
 
         public async Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam,
-            string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "")
+            string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "",
+            string requesterDeptCode = "")
         {
             using var conn = _db.GetBTITReqConnection();
             conn.Open();
@@ -45,7 +46,8 @@ namespace BTITPORequest.Services
                         po.RefNo, po.Subject, po.Notes,
                         po.Total, po.VatPercent, po.VatAmount,
                         po.GrandTotal, po.GrandTotalText,
-                        RequesterSam = creatorSam,
+                        RequesterSam     = creatorSam,
+                        RequesterDeptCode = string.IsNullOrEmpty(requesterDeptCode) ? (string?)null : requesterDeptCode,
                         PreAssignedIssuerSam    = preAssignedIssuerSam,
                         PreAssignedApprover1Sam = preAssignedApprover1Sam,
                         PreAssignedApprover2Sam = preAssignedApprover2Sam,
@@ -212,12 +214,19 @@ namespace BTITPORequest.Services
         }
 
         public async Task<DashboardViewModel> GetDashboardDataAsync(
-            string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo)
+            string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo,
+            string? deptCode = null)
         {
             using var conn = _db.GetBTITReqConnection();
             using var multi = await conn.QueryMultipleAsync(
                 "ITPO_sp_GetDashboard",
-                new { UserSam = isAdmin ? null : userSam, IsAdmin = isAdmin, DateFrom = dateFrom, DateTo = dateTo },
+                new {
+                    UserSam  = userSam,
+                    IsAdmin  = isAdmin,
+                    DeptCode = isAdmin ? null : deptCode,
+                    DateFrom = dateFrom,
+                    DateTo   = dateTo
+                },
                 commandType: CommandType.StoredProcedure);
 
             var summary = (await multi.ReadAsync<dynamic>()).FirstOrDefault();
@@ -240,6 +249,51 @@ namespace BTITPORequest.Services
                 RecentPOs = recentPOs,
                 PendingMyAction = pendingActions
             };
+        }
+
+        // ── Email Logs ──────────────────────────────────────────────
+        public async Task LogEmailAsync(InsertEmailLogModel model)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                await conn.ExecuteAsync("ITPO_sp_InsertEmailLog",
+                    new
+                    {
+                        model.ToEmail, model.Subject, model.PONumber, model.POId,
+                        model.MailType, model.IsSuccess, model.HttpStatus,
+                        model.ErrorMsg, model.IsDebug, model.OriginalTo, model.CreatedBy
+                    },
+                    commandType: CommandType.StoredProcedure);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "LogEmailAsync failed for {to}", model.ToEmail);
+            }
+        }
+
+        public async Task<(int totalCount, List<EmailLogModel> logs)> GetEmailLogsAsync(
+            DateTime? dateFrom, DateTime? dateTo,
+            string? poNumber, string? mailType, bool? isSuccess,
+            int pageNum = 1, int pageSize = 50)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                using var multi = await conn.QueryMultipleAsync("ITPO_sp_GetEmailLogs",
+                    new { DateFrom = dateFrom, DateTo = dateTo,
+                          PONumber = poNumber, MailType = mailType,
+                          IsSuccess = isSuccess, PageNum = pageNum, PageSize = pageSize },
+                    commandType: CommandType.StoredProcedure);
+                var total = await multi.ReadSingleAsync<int>();
+                var logs  = (await multi.ReadAsync<EmailLogModel>()).ToList();
+                return (total, logs);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetEmailLogsAsync failed");
+                return (0, new List<EmailLogModel>());
+            }
         }
     }
 }

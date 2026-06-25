@@ -11,6 +11,7 @@ namespace BTITPORequest.Controllers
     public class PORequestController : Controller
     {
         private readonly IPOService _poService;
+        private readonly IAuthService _authService;
         private readonly IDigitalSignService _signService;
         private readonly IPdfService _pdfService;
         private readonly SendMailController _mail;
@@ -18,16 +19,18 @@ namespace BTITPORequest.Controllers
 
         public PORequestController(
             IPOService poService,
+            IAuthService authService,
             IDigitalSignService signService,
             IPdfService pdfService,
             SendMailController mail,
             ILogger<PORequestController> logger)
         {
-            _poService = poService;
+            _poService   = poService;
+            _authService = authService;
             _signService = signService;
-            _pdfService = pdfService;
-            _mail = mail;
-            _logger = logger;
+            _pdfService  = pdfService;
+            _mail        = mail;
+            _logger      = logger;
         }
 
         // ── Helpers ───────────────────────────────────────────
@@ -69,15 +72,14 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Create()
         {
             var user = CurrentUser;
-            var issuers = await _poService.GetUsersByRoleAsync("Issuer");
-            var approvers = await _poService.GetUsersByRoleAsync("Approver");
+            var allEmployees = await _authService.GetAllUsersAsync();
             return View(new POCreateViewModel
             {
                 PO = new PORequestModel { PODate = DateTime.Today },
-                CurrentUserSam = user.SamAcc,
+                CurrentUserSam  = user.SamAcc,
                 CurrentUserName = user.FullName,
-                Issuers = issuers,
-                Approvers = approvers
+                Issuers   = allEmployees,
+                Approvers = allEmployees
             });
         }
 
@@ -94,19 +96,17 @@ namespace BTITPORequest.Controllers
             var user = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
 
-            // Line items validation เท่านั้น — Issuer/Approver ตรวจโดย JS แล้ว
             if (lineItems.Count == 0)
             {
-                var issuers   = await _poService.GetUsersByRoleAsync("Issuer");
-                var approvers = await _poService.GetUsersByRoleAsync("Approver");
+                var allEmployees = await _authService.GetAllUsersAsync();
                 ModelState.AddModelError("", "กรุณาเพิ่มรายการสินค้า (Line Items) อย่างน้อย 1 รายการ");
                 return View(new POCreateViewModel
                 {
                     PO = po,
-                    CurrentUserSam = user.SamAcc,
+                    CurrentUserSam  = user.SamAcc,
                     CurrentUserName = user.FullName,
-                    Issuers = issuers,
-                    Approvers = approvers,
+                    Issuers   = allEmployees,
+                    Approvers = allEmployees,
                     SelectedIssuerSam    = selectedIssuerSam,
                     SelectedApprover1Sam = selectedApprover1Sam,
                     SelectedApprover2Sam = selectedApprover2Sam
@@ -115,7 +115,8 @@ namespace BTITPORequest.Controllers
 
             RecalcTotals(po, lineItems);
             var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc,
-                selectedIssuerSam, selectedApprover1Sam, selectedApprover2Sam);
+                selectedIssuerSam, selectedApprover1Sam, selectedApprover2Sam,
+                requesterDeptCode: user.DeptCode);
 
             if (submitNow) await DoSubmitAsync(poId, po.PONumber, user);
 
@@ -132,12 +133,18 @@ namespace BTITPORequest.Controllers
             if (po == null) return NotFound();
             if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
             if (po.Status != POStatus.Draft) return BadRequest("Only drafts can be edited.");
+            var allEmployees = await _authService.GetAllUsersAsync();
             return View(new POCreateViewModel
             {
                 PO = po,
                 LineItems = po.LineItems,
-                CurrentUserSam = user.SamAcc,
-                CurrentUserName = user.FullName
+                CurrentUserSam  = user.SamAcc,
+                CurrentUserName = user.FullName,
+                Issuers   = allEmployees,
+                Approvers = allEmployees,
+                SelectedIssuerSam    = po.PreAssignedIssuerSam,
+                SelectedApprover1Sam = po.PreAssignedApprover1Sam,
+                SelectedApprover2Sam = po.PreAssignedApprover2Sam
             });
         }
 
@@ -146,10 +153,16 @@ namespace BTITPORequest.Controllers
         public async Task<IActionResult> Edit(
             [FromForm] PORequestModel po,
             [FromForm] string lineItemsJson,
+            [FromForm] string selectedIssuerSam = "",
+            [FromForm] string selectedApprover1Sam = "",
+            [FromForm] string selectedApprover2Sam = "",
             [FromForm] bool submitNow = false)
         {
             var user = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
+            po.PreAssignedIssuerSam    = selectedIssuerSam;
+            po.PreAssignedApprover1Sam = selectedApprover1Sam;
+            po.PreAssignedApprover2Sam = selectedApprover2Sam;
             RecalcTotals(po, lineItems);
             await _poService.UpdatePOAsync(po, lineItems);
             if (submitNow) await DoSubmitAsync(po.POId, po.PONumber, user);
@@ -168,36 +181,22 @@ namespace BTITPORequest.Controllers
             po.CanEdit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
             po.CanSubmit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
 
-            po.CanIssue = po.Status == POStatus.Requested
-                && (user.Role == "Admin"
-                    || (user.Role == "Issuer"
-                        && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
-                            || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+            bool isAdmin = user.Role == "Admin";
 
-            // CanRejectIssue: Issuer reject กลับ Requester (Status=1)
-            // Admin reject ได้ทุก pending status
-            po.CanRejectIssue = po.Status == POStatus.Requested
-                && (user.Role == "Admin"
-                    || (user.Role == "Issuer"
-                        && (string.IsNullOrEmpty(po.PreAssignedIssuerSam)
-                            || po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+            // assigned to this PO specifically
+            bool isAssignedIssuer   = !string.IsNullOrEmpty(po.PreAssignedIssuerSam)
+                && po.PreAssignedIssuerSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
+            bool isAssignedApprover = !string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
+                && po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
 
-            // CanRejectApprove: Admin หรือ Approver reject ตอน Issued (Status=2)
-            po.CanRejectApprove = po.Status == POStatus.Issued
-                && (user.Role == "Admin"
-                    || (user.Role == "Approver"
-                        && (string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
-                            || po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
+            // Issued by: คนที่ถูก assign หรือ Admin
+            po.CanIssue       = po.Status == POStatus.Requested && (isAdmin || isAssignedIssuer);
+            po.CanRejectIssue = po.Status == POStatus.Requested && (isAdmin || isAssignedIssuer);
 
-            // CanApprove: Approver role + PreAssigned check → Issued → Completed โดยตรง
-            po.CanApprove1 = po.Status == POStatus.Issued
-                && (user.Role == "Admin"
-                    || (user.Role == "Approver"
-                        && (string.IsNullOrEmpty(po.PreAssignedApprover1Sam)
-                            || po.PreAssignedApprover1Sam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase))));
-
-            // ไม่มี CanApprove2 อีกต่อไป — 1 level approval เท่านั้น
-            po.CanApprove2 = false;
+            // Authorized by: คนที่ถูก assign หรือ Admin
+            po.CanRejectApprove = po.Status == POStatus.Issued && (isAdmin || isAssignedApprover);
+            po.CanApprove1      = po.Status == POStatus.Issued && (isAdmin || isAssignedApprover);
+            po.CanApprove2      = false;
 
             // ทุกคนที่ login แล้วสามารถ Download PDF ได้เมื่อ Completed
             po.CanDownloadPDF = po.Status == POStatus.Completed;
@@ -289,14 +288,12 @@ namespace BTITPORequest.Controllers
                 user.SamAcc, user.FullName, user.Department,
                 signResult?.SignatureBase64 ?? "", sigImage);
 
-            // แจ้ง Approver
+            // แจ้ง Approver (คนที่ถูก assign ใน PO นี้เท่านั้น)
             if (!string.IsNullOrEmpty(po.PreAssignedApprover1Sam))
             {
-                var approvers = await _poService.GetUsersByRoleAsync("Approver");
-                var approver = approvers.FirstOrDefault(a =>
-                    a.SamAcc.Equals(po.PreAssignedApprover1Sam, StringComparison.OrdinalIgnoreCase));
-                if (approver != null && !string.IsNullOrEmpty(approver.Email))
-                    _ = _mail.NotifyApproverAsync(approver.Email, po.PONumber, po.VendorCompany,
+                var approverEmail = await GetEmailBysamAccAsync(po.PreAssignedApprover1Sam);
+                if (!string.IsNullOrEmpty(approverEmail))
+                    _ = _mail.NotifyApproverAsync(approverEmail, po.PONumber, po.VendorCompany,
                             po.Subject, user.FullName, po.GrandTotal.ToString("N2"), id);
             }
 
@@ -384,36 +381,28 @@ namespace BTITPORequest.Controllers
             switch (type.ToLower())
             {
                 case "issuer":
-                    // ส่งแจ้ง Issuer ให้ Issue PO
                     var issuerSam = !string.IsNullOrEmpty(po.IssuerSam)
                                     ? po.IssuerSam : po.PreAssignedIssuerSam;
                     if (!string.IsNullOrEmpty(issuerSam))
                     {
-                        var issuers = await _poService.GetUsersByRoleAsync("Issuer");
-                        var issuer = issuers.FirstOrDefault(i =>
-                            i.SamAcc.Equals(issuerSam, StringComparison.OrdinalIgnoreCase));
-                        var email = issuer?.Email ?? await GetEmailBysamAccAsync(issuerSam);
-                        target = email;
-                        sent = await _mail.NotifyIssuerAsync(email, po.PONumber, po.VendorCompany,
-                            po.Subject, po.RequesterName ?? po.RequesterSam, "",
-                            po.GrandTotal.ToString("N2"), id);
+                        target = await GetEmailBysamAccAsync(issuerSam);
+                        if (!string.IsNullOrEmpty(target))
+                            sent = await _mail.NotifyIssuerAsync(target, po.PONumber, po.VendorCompany,
+                                po.Subject, po.RequesterName ?? po.RequesterSam, "",
+                                po.GrandTotal.ToString("N2"), id);
                     }
                     break;
 
                 case "approver":
-                    // ส่งแจ้ง Approver ให้ Authorize PO
                     var approverSam = !string.IsNullOrEmpty(po.Approver1Sam)
                                       ? po.Approver1Sam : po.PreAssignedApprover1Sam;
                     if (!string.IsNullOrEmpty(approverSam))
                     {
-                        var approvers = await _poService.GetUsersByRoleAsync("Approver");
-                        var approver = approvers.FirstOrDefault(a =>
-                            a.SamAcc.Equals(approverSam, StringComparison.OrdinalIgnoreCase));
-                        var email = approver?.Email ?? await GetEmailBysamAccAsync(approverSam);
-                        target = email;
-                        sent = await _mail.NotifyApproverAsync(email, po.PONumber, po.VendorCompany,
-                            po.Subject, po.IssuerName ?? po.IssuerSam ?? "",
-                            po.GrandTotal.ToString("N2"), id);
+                        target = await GetEmailBysamAccAsync(approverSam);
+                        if (!string.IsNullOrEmpty(target))
+                            sent = await _mail.NotifyApproverAsync(target, po.PONumber, po.VendorCompany,
+                                po.Subject, po.IssuerName ?? po.IssuerSam ?? "",
+                                po.GrandTotal.ToString("N2"), id);
                     }
                     break;
 
@@ -604,20 +593,12 @@ namespace BTITPORequest.Controllers
             if (string.IsNullOrEmpty(samAcc)) return string.Empty;
             try
             {
-                // ลอง Issuer + Approver list ก่อน
-                var allRoles = await _poService.GetUsersByRoleAsync("Issuer");
-                allRoles.AddRange(await _poService.GetUsersByRoleAsync("Approver"));
-                allRoles.AddRange(await _poService.GetUsersByRoleAsync("Admin"));
-
-                var found = allRoles.FirstOrDefault(u =>
-                    u.SamAcc.Equals(samAcc, StringComparison.OrdinalIgnoreCase));
-                if (found != null && !string.IsNullOrEmpty(found.Email))
-                    return found.Email;
+                var hrUser = await _authService.GetHRUserAsync(samAcc);
+                if (hrUser != null && !string.IsNullOrEmpty(hrUser.user_email))
+                    return hrUser.user_email;
             }
-            catch { /* ignore */ }
-
-            // Fallback: samAcc@berninathailand.com
-            return $"{samAcc}@berninathailand.com";
+            catch { }
+            return string.Empty;
         }
 
         // ── PRIVATE: Recalc Totals ────────────────────────────

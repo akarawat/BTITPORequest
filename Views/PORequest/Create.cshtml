@@ -192,81 +192,47 @@
                     </p>
                 </div>
                 <div class="card-body">
-                    <!-- Issuer -->
+                    @{
+                        // Build JS data array จาก HR employees
+                        var empJson = Newtonsoft.Json.JsonConvert.SerializeObject(
+                            Model.Issuers.Select(u => new {
+                                sam  = u.samacc,
+                                name = u.fName
+                            }));
+                    }
+                    <script>
+                        var _hrEmployees = @Html.Raw(empJson);
+                    </script>
+
+                    <!-- Issued by -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">
                             <span class="badge bg-info me-1">Issued</span>
                             ผู้ Issue PO <span class="text-danger">*</span>
                         </label>
-                        @if (Model.Issuers.Any())
-                        {
-                            <select name="selectedIssuerSam" class="form-select @(ViewData.ModelState["selectedIssuerSam"]?.Errors.Count > 0 ? "is-invalid" : "")"
-                                    id="issuerSelect" required>
-                                <option value="">— เลือกผู้ Issue —</option>
-                                @foreach (var u in Model.Issuers)
-                                {
-                                    <option value="@u.SamAcc"
-                                            selected="@(Model.SelectedIssuerSam == u.SamAcc)"
-                                            data-name="@u.FullName"
-                                            data-dept="@u.Department">
-                                        @u.FullName
-                                        @if (!string.IsNullOrEmpty(u.Department))
-                                        {
-                                            <text> — @u.Department</text>
-                                        }
-                                    </option>
-                                }
-                            </select>
-                            <div class="invalid-feedback">กรุณาเลือกผู้ Issue ก่อน</div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-warning py-2 mb-0" style="font-size:.8rem;">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                ยังไม่มีการกำหนด Issuer
-                                <a href="/Admin" target="_blank" class="alert-link">ตั้งค่าที่ Admin</a>
-                            </div>
-                            <input type="hidden" name="selectedIssuerSam" value="" />
-                        }
+                        <input type="hidden" id="selectedIssuerSam" name="selectedIssuerSam"
+                               value="@Model.SelectedIssuerSam" required>
+                        <input type="text" id="issuerSearch" class="form-control" autocomplete="off"
+                               placeholder="พิมพ์ชื่อเพื่อค้นหา..." style="font-size:.85rem;">
+                        <div id="issuerDropdown" class="list-group position-absolute z-3 w-100 shadow-sm d-none"
+                             style="max-height:200px;overflow-y:auto;"></div>
+                        <div id="issuerDisplay" class="mt-1 small text-success fw-semibold"></div>
                     </div>
 
-                    <!-- Approver -->
+                    <!-- Authorized by -->
                     <div class="mb-0">
                         <label class="form-label fw-semibold">
                             <span class="badge bg-success me-1">Authorized</span>
                             ผู้อนุมัติ <span class="text-danger">*</span>
                         </label>
-                        @if (Model.Approvers.Any())
-                        {
-                            <select name="selectedApprover1Sam" class="form-select @(ViewData.ModelState["selectedApprover1Sam"]?.Errors.Count > 0 ? "is-invalid" : "")"
-                                    id="approverSelect" required>
-                                <option value="">— เลือกผู้อนุมัติ —</option>
-                                @foreach (var u in Model.Approvers)
-                                {
-                                    <option value="@u.SamAcc"
-                                            selected="@(Model.SelectedApprover1Sam == u.SamAcc)"
-                                            data-name="@u.FullName"
-                                            data-dept="@u.Department">
-                                        @u.FullName
-                                        @if (!string.IsNullOrEmpty(u.Department))
-                                        {
-                                            <text> — @u.Department</text>
-                                        }
-                                    </option>
-                                }
-                            </select>
-                            <div class="invalid-feedback">กรุณาเลือกผู้อนุมัติก่อน</div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-warning py-2 mb-0" style="font-size:.8rem;">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                ยังไม่มีการกำหนด Approver
-                                <a href="/Admin" target="_blank" class="alert-link">ตั้งค่าที่ Admin</a>
-                            </div>
-                            <input type="hidden" name="selectedApprover1Sam" value="" />
-                        }
-                        <input type="hidden" name="selectedApprover2Sam" value="" />
+                        <input type="hidden" id="selectedApprover1Sam" name="selectedApprover1Sam"
+                               value="@Model.SelectedApprover1Sam" required>
+                        <input type="text" id="approverSearch" class="form-control" autocomplete="off"
+                               placeholder="พิมพ์ชื่อเพื่อค้นหา..." style="font-size:.85rem;">
+                        <div id="approverDropdown" class="list-group position-absolute z-3 w-100 shadow-sm d-none"
+                             style="max-height:200px;overflow-y:auto;"></div>
+                        <div id="approverDisplay" class="mt-1 small text-success fw-semibold"></div>
+                        <input type="hidden" name="selectedApprover2Sam" value="">
                     </div>
                 </div>
             </div>
@@ -318,5 +284,58 @@
     <script>
         var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
         initPOForm(initialItems);
+
+        // ── Person Search (Issued / Authorized) ──────────────
+        function initPersonSearch(searchId, dropdownId, hiddenId, displayId, initSam) {
+            var $search   = document.getElementById(searchId);
+            var $dropdown = document.getElementById(dropdownId);
+            var $hidden   = document.getElementById(hiddenId);
+            var $display  = document.getElementById(displayId);
+
+            function setSelected(sam, name) {
+                $hidden.value  = sam;
+                $search.value  = name;
+                $display.innerHTML = sam ? '<i class="bi bi-check-circle-fill me-1"></i>' + name + ' (' + sam + ')' : '';
+                $dropdown.classList.add('d-none');
+                $dropdown.innerHTML = '';
+            }
+
+            // init จาก pre-selected value
+            if (initSam) {
+                var found = _hrEmployees.find(function(e) { return e.sam === initSam; });
+                if (found) setSelected(found.sam, found.name);
+            }
+
+            $search.addEventListener('input', function() {
+                var q = this.value.trim().toLowerCase();
+                $hidden.value = '';
+                $display.innerHTML = '';
+                if (q.length < 1) { $dropdown.classList.add('d-none'); return; }
+                var matches = _hrEmployees.filter(function(e) {
+                    return e.name.toLowerCase().includes(q) || e.sam.toLowerCase().includes(q);
+                }).slice(0, 20);
+                if (!matches.length) { $dropdown.classList.add('d-none'); return; }
+                $dropdown.innerHTML = matches.map(function(e) {
+                    return '<button type="button" class="list-group-item list-group-item-action py-1 px-2" style="font-size:.82rem;" ' +
+                           'data-sam="' + e.sam + '" data-name="' + e.name + '">' +
+                           '<span class="fw-semibold">' + e.name + '</span> ' +
+                           '<span class="text-muted">(' + e.sam + ')</span></button>';
+                }).join('');
+                $dropdown.classList.remove('d-none');
+            });
+
+            $dropdown.addEventListener('click', function(ev) {
+                var btn = ev.target.closest('button[data-sam]');
+                if (btn) setSelected(btn.dataset.sam, btn.dataset.name);
+            });
+
+            document.addEventListener('click', function(ev) {
+                if (!$search.contains(ev.target) && !$dropdown.contains(ev.target))
+                    $dropdown.classList.add('d-none');
+            });
+        }
+
+        initPersonSearch('issuerSearch',   'issuerDropdown',   'selectedIssuerSam',    'issuerDisplay',   '@Model.SelectedIssuerSam');
+        initPersonSearch('approverSearch', 'approverDropdown', 'selectedApprover1Sam', 'approverDisplay', '@Model.SelectedApprover1Sam');
     </script>
 }

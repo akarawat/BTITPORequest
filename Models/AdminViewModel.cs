@@ -62,4 +62,51 @@ namespace BTITPORequest.Models
         public string Department { get; set; } = string.Empty;
         public string RoleName { get; set; } = string.Empty;   // Issuer | Approver | Admin | (empty=remove)
     }
+
+    // ── Email Log ────────────────────────────────────────────
+    public class EmailLogModel
+    {
+        public int      LogId       { get; set; }
+        public DateTime SentAt      { get; set; }
+        public string   ToEmail     { get; set; } = string.Empty;
+        public string   Subject     { get; set; } = string.Empty;
+        public string?  PONumber    { get; set; }
+        public int?     POId        { get; set; }
+        public string?  MailType    { get; set; }
+        public bool     IsSuccess   { get; set; }
+        public int?     HttpStatus  { get; set; }
+        public string?  ErrorMsg    { get; set; }
+        public bool     IsDebug     { get; set; }
+        public string?  OriginalTo  { get; set; }
+        public string?  CreatedBy   { get; set; }
+    }
+
+    public class EmailLogViewModel
+    {
+        public List<EmailLogModel> Logs       { get; set; } = new();
+        public int                 TotalCount { get; set; }
+        public int                 PageNum    { get; set; } = 1;
+        public int                 PageSize   { get; set; } = 50;
+        public int                 TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+        public DateTime? DateFrom  { get; set; }
+        public DateTime? DateTo    { get; set; }
+        public string?   PONumber  { get; set; }
+        public string?   MailType  { get; set; }
+        public bool?     IsSuccess { get; set; }
+    }
+
+    public class InsertEmailLogModel
+    {
+        public string  ToEmail    { get; set; } = string.Empty;
+        public string  Subject    { get; set; } = string.Empty;
+        public string? PONumber   { get; set; }
+        public int?    POId       { get; set; }
+        public string? MailType   { get; set; }
+        public bool    IsSuccess  { get; set; }
+        public int?    HttpStatus { get; set; }
+        public string? ErrorMsg   { get; set; }
+        public bool    IsDebug    { get; set; }
+        public string? OriginalTo { get; set; }
+        public string? CreatedBy  { get; set; }
+    }
 }

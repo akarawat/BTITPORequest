@@ -56,6 +56,7 @@ namespace BTITPORequest.Services
                 FullName = fname,
                 Email = string.IsNullOrEmpty(email) ? hrUser?.user_email ?? "" : email,
                 Department = depart,
+                DeptCode = hrUser?.dep_code ?? string.Empty,
                 DeptManagerSam = hrUser?.samacc_depmgr ?? string.Empty,
                 DeptManagerEmail = hrUser?.depmgr_email ?? string.Empty,
                 EmpCode = hrUser?.emp_code ?? string.Empty,

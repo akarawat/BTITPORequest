@@ -26,6 +26,8 @@ namespace BTITPORequest.Models
 
         public string CurrentUserSam { get; set; } = string.Empty;
         public string CurrentUserName { get; set; } = string.Empty;
+        public string CurrentUserDeptCode { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; }
     }
 
     public class DailyAmountData

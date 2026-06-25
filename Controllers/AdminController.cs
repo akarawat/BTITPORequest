@@ -1,5 +1,6 @@
 using BTITPORequest.Helpers;
 using BTITPORequest.Models;
+using BTITPORequest.Services.Interfaces;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,12 +14,15 @@ namespace BTITPORequest.Controllers
         private readonly DbContext _db;
         private readonly IConfiguration _config;
         private readonly ILogger<AdminController> _logger;
+        private readonly IPOService _poService;
 
-        public AdminController(DbContext db, IConfiguration config, ILogger<AdminController> logger)
+        public AdminController(DbContext db, IConfiguration config,
+            ILogger<AdminController> logger, IPOService poService)
         {
-            _db = db;
-            _config = config;
-            _logger = logger;
+            _db       = db;
+            _config   = config;
+            _logger   = logger;
+            _poService = poService;
         }
 
         // ── Only Admin can access ─────────────────────────────
@@ -148,6 +152,29 @@ namespace BTITPORequest.Controllers
                 "ITPO_sp_GetAllUserRoles",
                 commandType: System.Data.CommandType.StoredProcedure)).ToList();
             return View(roles);
+        }
+
+        // ── Email Logs (Admin only) ───────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> EmailLogs(
+            DateTime? dateFrom, DateTime? dateTo,
+            string? poNumber, string? mailType, bool? isSuccess, int page = 1)
+        {
+            if (!IsAdmin()) return Forbid();
+            var (total, logs) = await _poService.GetEmailLogsAsync(
+                dateFrom, dateTo, poNumber, mailType, isSuccess, page, 50);
+            return View(new EmailLogViewModel
+            {
+                Logs       = logs,
+                TotalCount = total,
+                PageNum    = page,
+                PageSize   = 50,
+                DateFrom   = dateFrom,
+                DateTo     = dateTo,
+                PONumber   = poNumber,
+                MailType   = mailType,
+                IsSuccess  = isSuccess
+            });
         }
 
         // ── Private: Get employees from ITPO_GetEmployeelist ──

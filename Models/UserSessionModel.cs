@@ -18,6 +18,7 @@ namespace BTITPORequest.Models
         public string SignatureImageBase64 { get; set; } = string.Empty;
 
         public string Role { get; set; } = "User"; // User | Issuer | Approver | Admin
+        public string DeptCode { get; set; } = string.Empty; // dep_code จาก BT_HR
     }
 
     public class HRUserModel
@@ -26,6 +27,7 @@ namespace BTITPORequest.Models
         public string emp_code { get; set; } = string.Empty;
         public string fName { get; set; } = string.Empty;
         public string user_email { get; set; } = string.Empty;
+        public string dep_code { get; set; } = string.Empty;  // department code
         public string samacc_depmgr { get; set; } = string.Empty;
         public string depmgr_email { get; set; } = string.Empty;
     }

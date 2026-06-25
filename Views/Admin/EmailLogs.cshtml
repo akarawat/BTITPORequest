@@ -1,0 +1,284 @@
+@model BTITPORequest.Models.EmailLogViewModel
+@{
+    ViewData["Title"] = "Email Logs";
+    var successCount = Model.Logs.Count(l => l.IsSuccess);
+    var failCount    = Model.Logs.Count(l => !l.IsSuccess);
+    var debugCount   = Model.Logs.Count(l => l.IsDebug);
+}
+
+<div class="d-flex align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-envelope-check me-2 text-primary"></i>Email Logs</h4>
+    <span class="badge bg-secondary ms-2">@Model.TotalCount รายการ</span>
+</div>
+
+<!-- Filter Form -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1">จากวันที่</label>
+                <input type="date" name="dateFrom" class="form-control form-control-sm"
+                       value="@(Model.DateFrom.HasValue ? Model.DateFrom.Value.ToString("yyyy-MM-dd") : "")" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1">ถึงวันที่</label>
+                <input type="date" name="dateTo" class="form-control form-control-sm"
+                       value="@(Model.DateTo.HasValue ? Model.DateTo.Value.ToString("yyyy-MM-dd") : "")" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1">PO Number</label>
+                <input type="text" name="poNumber" class="form-control form-control-sm"
+                       value="@Model.PONumber" placeholder="เช่น BTPO260001" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1">ประเภทอีเมล์</label>
+                <select name="mailType" class="form-select form-select-sm">
+                    <option value="">— ทั้งหมด —</option>
+                    @{
+                        var mailTypes = new[] { "Submitted","Issuer","Approver","Completed","IssuedNotify","Rejected-L1","Rejected-L2" };
+                        foreach (var t in mailTypes)
+                        {
+                            if (Model.MailType == t)
+                            {
+                                <option value="@t" selected>@t</option>
+                            }
+                            else
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm mb-1">สถานะ</label>
+                <select name="isSuccess" class="form-select form-select-sm">
+                    @if (!Model.IsSuccess.HasValue)
+                    {
+                        <option value="" selected>— ทั้งหมด —</option>
+                        <option value="true">✅ ส่งสำเร็จ</option>
+                        <option value="false">❌ ส่งไม่สำเร็จ</option>
+                    }
+                    else if (Model.IsSuccess == true)
+                    {
+                        <option value="">— ทั้งหมด —</option>
+                        <option value="true" selected>✅ ส่งสำเร็จ</option>
+                        <option value="false">❌ ส่งไม่สำเร็จ</option>
+                    }
+                    else
+                    {
+                        <option value="">— ทั้งหมด —</option>
+                        <option value="true">✅ ส่งสำเร็จ</option>
+                        <option value="false" selected>❌ ส่งไม่สำเร็จ</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-fill">
+                    <i class="bi bi-search me-1"></i>ค้นหา
+                </button>
+                <a href="@Url.Action("EmailLogs","Admin")" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-circle"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-3 fw-bold text-primary">@Model.TotalCount</div>
+            <div class="text-muted small">อีเมล์ทั้งหมด (หน้านี้)</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-3 fw-bold text-success">@successCount</div>
+            <div class="text-muted small">ส่งสำเร็จ</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-3 fw-bold text-danger">@failCount</div>
+            <div class="text-muted small">ส่งไม่สำเร็จ</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="fs-3 fw-bold text-warning">@debugCount</div>
+            <div class="text-muted small">Debug Mode</div>
+        </div>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        @if (!Model.Logs.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1"></i>
+                <div class="mt-2">ไม่พบข้อมูล Email Logs</div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:140px">วันที่-เวลา</th>
+                            <th>ส่งถึง</th>
+                            <th>PO Number</th>
+                            <th style="width:110px">ประเภท</th>
+                            <th style="width:80px" class="text-center">สถานะ</th>
+                            <th style="width:60px" class="text-center">HTTP</th>
+                            <th>หัวข้อ / Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in Model.Logs)
+                        {
+                            <tr class="@(!log.IsSuccess ? "table-danger" : "")">
+                                <td class="text-nowrap small">
+                                    @log.SentAt.ToString("dd/MM/yy HH:mm:ss")
+                                </td>
+                                <td class="small">
+                                    @if (log.IsDebug && !string.IsNullOrEmpty(log.OriginalTo))
+                                    {
+                                        <span class="badge bg-warning text-dark me-1" title="Debug mode">D</span>
+                                        <span class="text-muted" title="Original: @log.OriginalTo">@log.ToEmail</span>
+                                    }
+                                    else
+                                    {
+                                        @log.ToEmail
+                                    }
+                                </td>
+                                <td class="small">
+                                    @if (!string.IsNullOrEmpty(log.PONumber) && log.POId.HasValue)
+                                    {
+                                        <a href="@Url.Action("Detail","PORequest",new{id=log.POId})"
+                                           class="text-decoration-none fw-semibold">
+                                            @log.PONumber
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(log.MailType))
+                                    {
+                                        var badgeClass = log.MailType switch {
+                                            "Submitted"    => "bg-primary",
+                                            "Issuer"       => "bg-warning text-dark",
+                                            "Approver"     => "bg-info text-dark",
+                                            "Completed"    => "bg-success",
+                                            "IssuedNotify" => "bg-secondary",
+                                            _ when log.MailType.StartsWith("Rejected") => "bg-danger",
+                                            _ => "bg-secondary"
+                                        };
+                                        <span class="badge @badgeClass">@log.MailType</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (log.IsSuccess)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success" title="ส่งสำเร็จ"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-x-circle-fill text-danger" title="ส่งไม่สำเร็จ"></i>
+                                    }
+                                </td>
+                                <td class="text-center small">
+                                    @(log.HttpStatus.HasValue ? log.HttpStatus.ToString() : "—")
+                                </td>
+                                <td class="small">
+                                    <div class="text-truncate" style="max-width:300px" title="@log.Subject">
+                                        @log.Subject
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(log.ErrorMsg))
+                                    {
+                                        <div class="text-danger text-truncate" style="max-width:300px"
+                                             title="@log.ErrorMsg">
+                                            <i class="bi bi-exclamation-triangle me-1"></i>@log.ErrorMsg
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+                    <small class="text-muted">
+                        หน้า @Model.PageNum / @Model.TotalPages
+                        (ทั้งหมด @Model.TotalCount รายการ)
+                    </small>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @if (Model.PageNum > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("EmailLogs","Admin",new{
+                                        dateFrom=Model.DateFrom?.ToString("yyyy-MM-dd"),
+                                        dateTo=Model.DateTo?.ToString("yyyy-MM-dd"),
+                                        poNumber=Model.PONumber, mailType=Model.MailType,
+                                        isSuccess=Model.IsSuccess, page=Model.PageNum-1})">
+                                        &laquo;
+                                    </a>
+                                </li>
+                            }
+                            @{
+                                int startPage = Math.Max(1, Model.PageNum - 2);
+                                int endPage   = Math.Min(Model.TotalPages, Model.PageNum + 2);
+                            }
+                            @for (int p = startPage; p <= endPage; p++)
+                            {
+                                var pCopy = p;
+                                if (pCopy == Model.PageNum)
+                                {
+                                    <li class="page-item active">
+                                        <span class="page-link">@pCopy</span>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("EmailLogs","Admin",new{
+                                            dateFrom=Model.DateFrom?.ToString("yyyy-MM-dd"),
+                                            dateTo=Model.DateTo?.ToString("yyyy-MM-dd"),
+                                            poNumber=Model.PONumber, mailType=Model.MailType,
+                                            isSuccess=Model.IsSuccess, page=pCopy})">
+                                            @pCopy
+                                        </a>
+                                    </li>
+                                }
+                            }
+                            @if (Model.PageNum < Model.TotalPages)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("EmailLogs","Admin",new{
+                                        dateFrom=Model.DateFrom?.ToString("yyyy-MM-dd"),
+                                        dateTo=Model.DateTo?.ToString("yyyy-MM-dd"),
+                                        poNumber=Model.PONumber, mailType=Model.MailType,
+                                        isSuccess=Model.IsSuccess, page=Model.PageNum+1})">
+                                        &raquo;
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+        }
+    </div>
+</div>
