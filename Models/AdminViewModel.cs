@@ -18,11 +18,18 @@ namespace BTITPORequest.Models
         public string emp_code { get; set; } = string.Empty;
         public DateTime? CREATE_DT { get; set; }
 
-        // Joined from ITPO_UserRoles (not in SP result — filled in service)
-        public string? AssignedRole { get; set; }       // null = ไม่มีสิทธิ์พิเศษ
-        public bool IsIssuer   => AssignedRole == "Issuer";
-        public bool IsApprover => AssignedRole == "Approver";
-        public bool IsAdmin    => AssignedRole == "Admin";
+        // Joined from ITPO_UserRoles — 1 คนมีได้หลาย Role
+        public List<string> AssignedRoles { get; set; } = new();
+
+        // Priority role: Admin > Approver > Issuer > null
+        public string? AssignedRole =>
+            AssignedRoles.Contains("Admin")    ? "Admin"    :
+            AssignedRoles.Contains("Approver") ? "Approver" :
+            AssignedRoles.Contains("Issuer")   ? "Issuer"   : null;
+
+        public bool IsIssuer   => AssignedRoles.Contains("Issuer");
+        public bool IsApprover => AssignedRoles.Contains("Approver");
+        public bool IsAdmin    => AssignedRoles.Contains("Admin");
     }
 
     // ── Role assignment record ───────────────────────────────
@@ -60,7 +67,15 @@ namespace BTITPORequest.Models
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
-        public string RoleName { get; set; } = string.Empty;   // Issuer | Approver | Admin | (empty=remove)
+        public string RoleName { get; set; } = string.Empty;   // Issuer | Approver | Admin
+    }
+
+    // ── Remove Specific Role Request ─────────────────────────
+    public class RemoveRoleRequest
+    {
+        public string SamAcc { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string RoleName { get; set; } = string.Empty;   // Role ที่ต้องการลบ
     }
 
     // ── Email Log ────────────────────────────────────────────

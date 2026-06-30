@@ -58,14 +58,17 @@ namespace BTITPORequest.Controllers
 
                 vm.CurrentRoles = roles;
 
-                // Join roles กับ employees
-                var roleDict = roles.ToDictionary(
-                    r => r.SamAcc.ToLower(),
-                    r => r.RoleName,
-                    StringComparer.OrdinalIgnoreCase);
+                // Join roles กับ employees (1 คนมีได้หลาย Role)
+                var roleDict = roles
+                    .GroupBy(r => r.SamAcc, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key.ToLower(),
+                        g => g.Select(r => r.RoleName).ToList(),
+                        StringComparer.OrdinalIgnoreCase);
 
                 foreach (var emp in employees)
-                    emp.AssignedRole = roleDict.TryGetValue(emp.SAMACC.ToLower(), out var r) ? r : null;
+                    emp.AssignedRoles = roleDict.TryGetValue(emp.SAMACC.ToLower(), out var rList)
+                        ? rList : new List<string>();
 
                 // Filter
                 if (!string.IsNullOrWhiteSpace(search))
@@ -96,48 +99,63 @@ namespace BTITPORequest.Controllers
             return View(vm);
         }
 
-        // ── Assign / Update Role (AJAX) ───────────────────────
+        // ── Add Role (AJAX) ───────────────────────────────────
         [HttpPost]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> SetRole([FromBody] UpsertRoleRequest req)
         {
             if (!IsAdmin()) return Forbid();
+            if (string.IsNullOrWhiteSpace(req.RoleName) || req.RoleName == "User")
+                return BadRequest(new { success = false, message = "Invalid role name" });
 
             var currentUser = SessionHelper.GetUser(HttpContext.Session)
                            ?? SessionHelper.GetUserFromClaims(User);
-
             try
             {
                 using var conn = _db.GetBTITReqConnection();
-
-                if (string.IsNullOrEmpty(req.RoleName) || req.RoleName == "User")
-                {
-                    // Remove role
-                    await conn.ExecuteAsync("ITPO_sp_DeleteUserRole",
-                        new { SamAcc = req.SamAcc },
-                        commandType: System.Data.CommandType.StoredProcedure);
-                    _logger.LogInformation("Role removed for {sam} by {admin}", req.SamAcc, currentUser?.SamAcc);
-                    return Ok(new { success = true, message = $"Role removed for {req.FullName}" });
-                }
-                else
-                {
-                    // Assign or update role
-                    await conn.ExecuteAsync("ITPO_sp_UpsertUserRole",
-                        new
-                        {
-                            req.SamAcc, req.FullName, req.Email, req.Department,
-                            req.RoleName,
-                            CreatedBy = currentUser?.SamAcc
-                        },
-                        commandType: System.Data.CommandType.StoredProcedure);
-                    _logger.LogInformation("Role {role} assigned to {sam} by {admin}",
-                        req.RoleName, req.SamAcc, currentUser?.SamAcc);
-                    return Ok(new { success = true, message = $"{req.RoleName} assigned to {req.FullName}" });
-                }
+                await conn.ExecuteAsync("ITPO_sp_UpsertUserRole",
+                    new
+                    {
+                        req.SamAcc, req.FullName, req.Email, req.Department,
+                        req.RoleName,
+                        CreatedBy = currentUser?.SamAcc
+                    },
+                    commandType: System.Data.CommandType.StoredProcedure);
+                _logger.LogInformation("Role {role} added to {sam} by {admin}",
+                    req.RoleName, req.SamAcc, currentUser?.SamAcc);
+                return Ok(new { success = true, message = $"{req.RoleName} added to {req.FullName}" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SetRole error for {sam}", req.SamAcc);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // ── Remove Specific Role (AJAX) ───────────────────────
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> RemoveRole([FromBody] RemoveRoleRequest req)
+        {
+            if (!IsAdmin()) return Forbid();
+            if (string.IsNullOrWhiteSpace(req.RoleName))
+                return BadRequest(new { success = false, message = "RoleName required" });
+
+            var currentUser = SessionHelper.GetUser(HttpContext.Session)
+                           ?? SessionHelper.GetUserFromClaims(User);
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                await conn.ExecuteAsync("ITPO_sp_DeleteUserRole",
+                    new { SamAcc = req.SamAcc, RoleName = req.RoleName },
+                    commandType: System.Data.CommandType.StoredProcedure);
+                _logger.LogInformation("Role {role} removed from {sam} by {admin}",
+                    req.RoleName, req.SamAcc, currentUser?.SamAcc);
+                return Ok(new { success = true, message = $"{req.RoleName} removed from {req.FullName}" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RemoveRole error for {sam}", req.SamAcc);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

@@ -27,14 +27,15 @@
                         <th>Role</th>
                         <th>Assigned</th>
                         <th>By</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @if (!Model.Any())
                     {
-                        <tr><td colspan="6" class="text-center text-muted py-4">No roles assigned yet.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">No roles assigned yet.</td></tr>
                     }
-                    @foreach (var r in Model.OrderBy(x => x.RoleName))
+                    @foreach (var r in Model.OrderBy(x => x.RoleName).ThenBy(x => x.FullName))
                     {
                         var color = r.RoleName switch
                         {
@@ -48,6 +49,15 @@
                             <td><span class="badge bg-@color">@r.RoleName</span></td>
                             <td>@r.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
                             <td class="text-muted">@r.CreatedBy</td>
+                            <td class="text-end">
+                                <button class="btn btn-outline-danger btn-sm btn-remove-role-row"
+                                        data-sam="@r.SamAcc"
+                                        data-name="@r.FullName"
+                                        data-role="@r.RoleName"
+                                        title="Remove @r.RoleName from @r.FullName">
+                                    <i class="bi bi-x-circle me-1"></i>Remove
+                                </button>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -55,3 +65,16 @@
         </div>
     </div>
 </div>
+
+<!-- Toast feedback -->
+<div id="roleToast" class="toast align-items-center border-0 position-fixed bottom-0 end-0 m-3"
+     role="alert" style="z-index:9999;">
+    <div class="d-flex">
+        <div class="toast-body" id="roleToastBody"></div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin-roles.js" asp-append-version="true"></script>
+}

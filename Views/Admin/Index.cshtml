@@ -135,14 +135,6 @@
                     }
                     @foreach (var emp in Model.Employees)
                     {
-                        var roleBadge = emp.AssignedRole switch
-                        {
-                            "Issuer"   => "info",
-                            "Approver" => "success",
-                            "Admin"    => "danger",
-                            _          => "secondary"
-                        };
-                        var roleLabel = emp.AssignedRole ?? "User";
                         <tr data-sam="@emp.SAMACC.ToLower()"
                             data-name="@emp.DISPNAME"
                             data-email="@emp.UEMAIL"
@@ -162,27 +154,40 @@
                                 <div style="font-size:.8rem;">@emp.reporter</div>
                             </td>
                             <td class="text-center">
-                                <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <span class="badge bg-@roleBadge role-badge" style="min-width:72px;">
-                                        @roleLabel
-                                    </span>
+                                <div class="d-flex flex-column align-items-center gap-1">
+                                    @* Badges: แสดงทุก Role ที่ถูก Assign *@
+                                    <div class="d-flex flex-wrap justify-content-center gap-1">
+                                        @if (!emp.AssignedRoles.Any())
+                                        {
+                                            <span class="badge bg-secondary">User</span>
+                                        }
+                                        @foreach (var r in emp.AssignedRoles.OrderBy(x => x))
+                                        {
+                                            var bc = r switch { "Issuer" => "info", "Approver" => "success", "Admin" => "danger", _ => "secondary" };
+                                            <span class="badge bg-@bc">@r</span>
+                                        }
+                                    </div>
+                                    @* Buttons: กดเพิ่ม/ลบ role ทีละตัว *@
                                     <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-info btn-role @(emp.AssignedRole == "Issuer" ? "active" : "")"
-                                                data-role="Issuer" title="Set as Issuer">
+                                        <button class="btn btn-outline-info btn-role @(emp.IsIssuer ? "active" : "")"
+                                                data-role="Issuer"
+                                                title="@(emp.IsIssuer ? "Remove Issuer" : "Add Issuer")">
                                             <i class="bi bi-pen"></i>
                                         </button>
-                                        <button class="btn btn-outline-success btn-role @(emp.AssignedRole == "Approver" ? "active" : "")"
-                                                data-role="Approver" title="Set as Approver">
+                                        <button class="btn btn-outline-success btn-role @(emp.IsApprover ? "active" : "")"
+                                                data-role="Approver"
+                                                title="@(emp.IsApprover ? "Remove Approver" : "Add Approver")">
                                             <i class="bi bi-shield-check"></i>
                                         </button>
-                                        <button class="btn btn-outline-danger btn-role @(emp.AssignedRole == "Admin" ? "active" : "")"
-                                                data-role="Admin" title="Set as Admin">
+                                        <button class="btn btn-outline-danger btn-role @(emp.IsAdmin ? "active" : "")"
+                                                data-role="Admin"
+                                                title="@(emp.IsAdmin ? "Remove Admin" : "Add Admin")">
                                             <i class="bi bi-person-gear"></i>
                                         </button>
-                                        @if (!string.IsNullOrEmpty(emp.AssignedRole))
+                                        @if (emp.AssignedRoles.Any())
                                         {
-                                            <button class="btn btn-outline-secondary btn-remove-role"
-                                                    title="Remove role">
+                                            <button class="btn btn-outline-secondary btn-remove-all-roles"
+                                                    title="Remove all roles">
                                                 <i class="bi bi-x-circle"></i>
                                             </button>
                                         }

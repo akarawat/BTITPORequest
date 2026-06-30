@@ -1,5 +1,5 @@
 /* ============================================================
-   admin-roles.js — Role assignment via AJAX
+   admin-roles.js — Multi-role assignment via AJAX
    ============================================================ */
 $(function () {
     var $toast = $('#roleToast');
@@ -12,15 +12,12 @@ $(function () {
         toast.show();
     }
 
-    function setRole(sam, name, email, dept, role) {
+    function callApi(url, payload, callback) {
         $.ajax({
-            url: '/Admin/SetRole',
+            url: url,
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({
-                samAcc: sam, fullName: name, email: email,
-                department: dept, roleName: role
-            }),
+            data: JSON.stringify(payload),
             headers: {
                 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
                     || $('meta[name="csrf-token"]').attr('content') || ''
@@ -28,7 +25,7 @@ $(function () {
             success: function (res) {
                 if (res.success) {
                     showToast(res.message, true);
-                    setTimeout(function () { location.reload(); }, 1000);
+                    setTimeout(function () { location.reload(); }, 800);
                 } else {
                     showToast(res.message || 'Error', false);
                 }
@@ -39,34 +36,48 @@ $(function () {
         });
     }
 
-    // ── Assign Role button ────────────────────────────────────
+    // ── Role button click ─────────────────────────────────────
+    // active = already has this role → Remove
+    // inactive = doesn't have this role → Add
     $(document).on('click', '.btn-role', function () {
-        var $btn = $(this);
-        var role = $btn.data('role');
-        var $row = $btn.closest('tr');
-        var sam  = $row.data('sam');
-        var name = $row.data('name');
+        var $btn  = $(this);
+        var role  = $btn.data('role');
+        var $row  = $btn.closest('tr');
+        var sam   = $row.data('sam');
+        var name  = $row.data('name');
         var email = $row.data('email');
-        var dept = $row.data('dept');
+        var dept  = $row.data('dept');
 
-        // toggle: if already active, remove role
         if ($btn.hasClass('active')) {
-            role = '';
+            // Remove this specific role
+            if (!confirm('ลบ Role "' + role + '" ออกจาก ' + name + '?')) return;
+            callApi('/Admin/RemoveRole', { samAcc: sam, fullName: name, roleName: role });
+        } else {
+            // Add this role
+            if (!confirm('เพิ่ม Role "' + role + '" ให้ ' + name + '?')) return;
+            callApi('/Admin/SetRole', {
+                samAcc: sam, fullName: name, email: email,
+                department: dept, roleName: role
+            });
         }
-
-        var confirmMsg = role
-            ? 'Assign ' + role + ' role to ' + name + '?'
-            : 'Remove role from ' + name + '?';
-
-        if (!confirm(confirmMsg)) return;
-        setRole(sam, name, email, dept, role);
     });
 
-    // ── Remove Role button ────────────────────────────────────
-    $(document).on('click', '.btn-remove-role', function () {
+    // ── Remove all roles button (x icon) ─────────────────────
+    $(document).on('click', '.btn-remove-all-roles', function () {
         var $row = $(this).closest('tr');
         var name = $row.data('name');
-        if (!confirm('Remove role from ' + name + '?')) return;
-        setRole($row.data('sam'), name, $row.data('email'), $row.data('dept'), '');
+        var sam  = $row.data('sam');
+        if (!confirm('ลบทุก Role ออกจาก ' + name + '?')) return;
+        callApi('/Admin/RemoveRole', { samAcc: sam, fullName: name, roleName: '' });
+    });
+
+    // ── Remove single role from Roles page ───────────────────
+    $(document).on('click', '.btn-remove-role-row', function () {
+        var $btn  = $(this);
+        var sam   = $btn.data('sam');
+        var name  = $btn.data('name');
+        var role  = $btn.data('role');
+        if (!confirm('ลบ Role "' + role + '" ออกจาก ' + name + '?')) return;
+        callApi('/Admin/RemoveRole', { samAcc: sam, fullName: name, roleName: role });
     });
 });
