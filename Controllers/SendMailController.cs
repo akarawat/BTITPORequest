@@ -265,6 +265,29 @@ namespace BTITPORequest.Controllers
                 greeting: "Dear Requester,"),
                 mailType: "IssuedNotify", poNumber: poNumber, poId: poId, createdBy: createdBy);
 
+        public Task<bool> NotifyPRClosedAsync(
+            string requesterEmail, string prNumber, string closedByName,
+            string? poNumber, int prId, string prRequestUrl, string? createdBy = null)
+        {
+            var rows = new System.Collections.Generic.List<(string, string)>
+            {
+                ("PR Number",  prNumber),
+                ("Closed By",  closedByName),
+                ("Date",       DateTime.Now.ToString("dd/MM/yyyy HH:mm")),
+            };
+            if (!string.IsNullOrEmpty(poNumber))
+                rows.Add(("Linked PO", poNumber));
+
+            return SendAsync(requesterEmail,
+                $"[IT PR] ✅ สินค้าถึงแล้ว — ปิด PR {prNumber}",
+                Build("PR Closed — Goods Received", ("success", "✅ Goods Received"),
+                rows.ToArray(),
+                $"{prRequestUrl}/PRRequest/Detail/{prId}", "View PR",
+                "ขออภัยในความไม่สะดวก PR ของท่านได้รับการปิดแล้ว เนื่องจากสินค้าถึงแล้ว",
+                greeting: "เรียน ผู้สร้าง PR,"),
+                mailType: "PRClosed", createdBy: createdBy);
+        }
+
         // ── HTML builder ──────────────────────────────────────────────────────
         private static string Build(string title, (string color, string label) badge,
             (string label, string value)[] rows, string actionUrl,

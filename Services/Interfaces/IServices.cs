@@ -20,7 +20,7 @@ namespace BTITPORequest.Services.Interfaces
     {
         Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam,
             string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "",
-            string requesterDeptCode = "");
+            string requesterDeptCode = "", string deptPrefix = "IT");
         Task<List<UserRoleModel>> GetUsersByRoleAsync(string roleName);
         Task UpdatePOAsync(PORequestModel po, List<POLineItemModel> lineItems);
         Task<PORequestModel?> GetPOByIdAsync(int poId);
@@ -37,10 +37,11 @@ namespace BTITPORequest.Services.Interfaces
             string signatureBase64, string signatureImageBase64, string? remark);
         Task<bool> RejectPOAsync(int poId, int level,
             string approverSam, string approverName, string remark);
+        Task<bool> CancelPOAsync(int poId, string cancelledBy, string cancelledByName, string? remark = null);
         Task<DashboardViewModel> GetDashboardDataAsync(
             string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo,
             string? deptCode = null);
-        Task<string> GeneratePONumberAsync();
+        Task<string> GeneratePONumberAsync(string deptPrefix = "IT");
 
         // ── Email Logs ──────────────────────────────────────
         Task LogEmailAsync(InsertEmailLogModel model);
@@ -48,6 +49,23 @@ namespace BTITPORequest.Services.Interfaces
             DateTime? dateFrom, DateTime? dateTo,
             string? poNumber, string? mailType, bool? isSuccess,
             int pageNum = 1, int pageSize = 50);
+
+        // ── PR → PO: ดึง Authorized PRs จาก BTITReq ────────
+        Task<List<PRForPOModel>> GetAuthorizedPRsForPOAsync();
+        Task<(PRForPOModel? PR, List<PRLineItemForPOModel> LineItems)> GetPRDetailForPOAsync(int prId);
+        Task<(List<PRForPOModel> PRs, List<PRLineItemForPOModel> LineItems)> GetMultiplePRsDetailForPOAsync(IEnumerable<int> prIds);
+
+        // ── ปิด PR (GoodsReceived=8) โดย Admin ──────────────
+        /// <summary>Returns (success, prNumber, requesterEmail, requesterName)</summary>
+        Task<(bool Success, string PRNumber, string RequesterEmail, string RequesterName)>
+            ClosePRAsync(int prId, string closedBy, string closedByName,
+                         string? poNumber = null, string? remark = null);
+
+        // ── Link PRs → PO Number (เรียกหลัง Create PO สำเร็จ) ──
+        Task LinkPRsToPOAsync(IEnumerable<int> prIds, string poNumber);
+
+        // ── Audit: ดึง PR ที่ถูกปิดแล้ว (Status=8) ─────────
+        Task<List<ClosedPRModel>> GetClosedPRsAsync();
     }
 
     // ──────────────────────────────────────────────────────────

@@ -10,13 +10,17 @@ namespace BTITPORequest.Models
         Authorized = 4,
         Completed = 6,
         RejectedByApprover1 = -1,
-        RejectedByApprover2 = -2
+        RejectedByApprover2 = -2,
+        Cancelled = -9
     }
 
     public class PORequestModel
     {
         public int POId { get; set; }
         public string PONumber { get; set; } = string.Empty;
+
+        /// <summary>IT = IT Inventory (dep_code 420), OS = Office Stationery (dep_code 990)</summary>
+        public string DeptPrefix { get; set; } = "IT";
 
         [Required][DataType(DataType.Date)]
         public DateTime PODate { get; set; } = DateTime.Today;
@@ -32,6 +36,14 @@ namespace BTITPORequest.Models
         public string VendorEmail { get; set; } = string.Empty;
         public string RefNo { get; set; } = string.Empty;
         [Required] public string Subject { get; set; } = string.Empty;
+
+        // Reference fields — backward-compat กับระบบเดิม (ทั้งหมด optional)
+        public string? OldPONumber     { get; set; }   // Ref. Old PO No.
+        public string? InternalContact { get; set; }   // Internal Contact
+        public string? WorkOrderNo     { get; set; }   // Work Order No.
+        public string? NCRNo           { get; set; }   // NCR No.
+        public string? IRCRNo          { get; set; }   // IR/CR No.
+        public string? ChangeNo        { get; set; }   // Change No.
 
         // Financials
         public decimal Total { get; set; }
@@ -57,6 +69,7 @@ namespace BTITPORequest.Models
             POStatus.Completed => "Completed",
             POStatus.RejectedByApprover1 => "Rejected",
             POStatus.RejectedByApprover2 => "Rejected",
+            POStatus.Cancelled => "Cancelled",
             _ => "Unknown"
         };
         public string StatusBadgeClass => Status switch
@@ -68,6 +81,7 @@ namespace BTITPORequest.Models
             POStatus.Completed => "success",
             POStatus.RejectedByApprover1 => "danger",
             POStatus.RejectedByApprover2 => "danger",
+            POStatus.Cancelled => "dark",
             _ => "secondary"
         };
 
@@ -123,6 +137,8 @@ namespace BTITPORequest.Models
         public bool CanRejectApprove { get; set; }  // Approver/Admin reject → Requester
         public bool CanApprove2 { get; set; }
         public bool CanDownloadPDF { get; set; }
+        /// <summary>ผู้สร้างหรือ Admin ยกเลิก PO ได้ตราบที่ยังไม่ Completed/Cancelled</summary>
+        public bool CanCancel { get; set; }
     }
 
     public class POLineItemModel
@@ -155,6 +171,12 @@ namespace BTITPORequest.Models
         public List<POLineItemModel> LineItems { get; set; } = new();
         public string CurrentUserSam { get; set; } = string.Empty;
         public string CurrentUserName { get; set; } = string.Empty;
+
+        // Department prefix for PO number (IT / OS)
+        public string DeptPrefix { get; set; } = "IT";
+
+        // PRIds ที่ใช้สร้าง PO นี้ (ส่งมาจาก CreateFromPR flow)
+        public List<int> SourcePRIds { get; set; } = new();
 
         // Pre-assign Issuer & Approver at creation time
         public string SelectedIssuerSam { get; set; } = string.Empty;

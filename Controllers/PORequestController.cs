@@ -16,6 +16,7 @@ namespace BTITPORequest.Controllers
         private readonly IPdfService _pdfService;
         private readonly SendMailController _mail;
         private readonly ILogger<PORequestController> _logger;
+        private readonly IConfiguration _config;
 
         public PORequestController(
             IPOService poService,
@@ -23,7 +24,8 @@ namespace BTITPORequest.Controllers
             IDigitalSignService signService,
             IPdfService pdfService,
             SendMailController mail,
-            ILogger<PORequestController> logger)
+            ILogger<PORequestController> logger,
+            IConfiguration config)
         {
             _poService   = poService;
             _authService = authService;
@@ -31,6 +33,7 @@ namespace BTITPORequest.Controllers
             _pdfService  = pdfService;
             _mail        = mail;
             _logger      = logger;
+            _config      = config;
         }
 
         // ── Helpers ───────────────────────────────────────────
@@ -83,6 +86,157 @@ namespace BTITPORequest.Controllers
             });
         }
 
+        // ── CREATE FROM PR (list) ─────────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> CreateFromPR()
+        {
+            var prListTask     = _poService.GetAuthorizedPRsForPOAsync();
+            var closedListTask = _poService.GetClosedPRsAsync();
+            await Task.WhenAll(prListTask, closedListTask);
+
+            ViewData["Title"] = "New PO from PR";
+            ViewData["BreadcrumbItems"] = new List<(string Label, string? Url)>
+            {
+                ("Dashboard", "/"),
+                ("PO Requests", "/PORequest"),
+                ("New PO from PR", null)
+            };
+            return View(new CreateFromPRViewModel
+            {
+                PRList       = prListTask.Result,
+                ClosedPRList = closedListTask.Result
+            });
+        }
+
+        // ── CREATE FROM PR (pre-fill form with selected PR) ───
+        [HttpGet]
+        [Route("PORequest/CreateFromPR/{prId:int}")]
+        public async Task<IActionResult> CreateFromPRDetail(int prId)
+        {
+            return await BuildCreateFromPRViewAsync(new[] { prId });
+        }
+
+        // ── CREATE FROM PR (multi-select POST) ───────────────
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> CreateFromPRMulti([FromForm] List<int> prIds)
+        {
+            if (prIds == null || prIds.Count == 0)
+            {
+                TempData["Error"] = "กรุณาเลือก PR อย่างน้อย 1 รายการ";
+                return RedirectToAction("CreateFromPR");
+            }
+            return await BuildCreateFromPRViewAsync(prIds);
+        }
+
+        // ── PRIVATE: build POCreateViewModel from one or many PRs ──
+        private async Task<IActionResult> BuildCreateFromPRViewAsync(IEnumerable<int> prIds)
+        {
+            var idList = prIds.ToList();
+            var user = CurrentUser;
+            var (prs, lineItems) = await _poService.GetMultiplePRsDetailForPOAsync(idList);
+
+            if (!prs.Any())
+            {
+                TempData["Error"] = "ไม่พบ PR ที่เลือก หรือ PR ยังไม่ได้รับการ Authorize";
+                return RedirectToAction("CreateFromPR");
+            }
+
+            var allEmployees = await _authService.GetAllUsersAsync();
+            var firstPR = prs.First();
+            var prNumbers = string.Join(", ", prs.Select(p => p.PRNumber));
+
+            // Map PR line items → PO line items (preserve PR source in description)
+            var poLineItems = new List<POLineItemModel>();
+            foreach (var pr in prs)
+            {
+                var prItems = lineItems.Where(li => li.PRId == pr.PRId).ToList();
+                if (prs.Count > 1 && prItems.Any())
+                {
+                    // ถ้ามีหลาย PR ให้ใส่ PR number ไว้ใน description แรกของแต่ละ PR เพื่อ trace ได้
+                    var first = prItems.First();
+                    poLineItems.Add(new POLineItemModel
+                    {
+                        Description = $"[{pr.PRNumber}] " + (string.IsNullOrEmpty(first.BrandModel)
+                            ? first.Description
+                            : $"{first.Description} ({first.BrandModel})"),
+                        Quantity  = first.Quantity,
+                        UnitPrice = first.UnitPrice
+                    });
+                    foreach (var li in prItems.Skip(1))
+                    {
+                        poLineItems.Add(new POLineItemModel
+                        {
+                            Description = string.IsNullOrEmpty(li.BrandModel)
+                                ? li.Description
+                                : $"{li.Description} ({li.BrandModel})",
+                            Quantity  = li.Quantity,
+                            UnitPrice = li.UnitPrice
+                        });
+                    }
+                }
+                else
+                {
+                    foreach (var li in prItems)
+                    {
+                        poLineItems.Add(new POLineItemModel
+                        {
+                            Description = string.IsNullOrEmpty(li.BrandModel)
+                                ? li.Description
+                                : $"{li.Description} ({li.BrandModel})",
+                            Quantity  = li.Quantity,
+                            UnitPrice = li.UnitPrice
+                        });
+                    }
+                }
+            }
+
+            // Auto-detect dept prefix จาก LinkedDeptId ของ PR
+            // ITNStationary deptId 1 = IT Inventory, 2 = Office Stationery
+            var autoDeptPrefix = firstPR.LinkedDeptId == 2 ? "OS" : "IT";
+
+            var vm = new POCreateViewModel
+            {
+                PO = new PORequestModel
+                {
+                    PODate        = DateTime.Today,
+                    // Subject: ถ้าเป็น PR เดียวใช้ ReasonToOrder, หลาย PR ให้ user กรอกเอง
+                    Subject       = prs.Count == 1 ? firstPR.ReasonToOrder : string.Empty,
+                    RefNo         = prNumbers,
+                    // Vendor: ใช้จาก PR แรก, user แก้ได้ในฟอร์ม
+                    VendorCompany = firstPR.SupplierCompany,
+                    VendorAttn    = firstPR.SupplierContact,
+                    VendorEmail   = firstPR.SupplierEmail,
+                    VendorTel     = firstPR.SupplierTel,
+                    VendorFax     = firstPR.SupplierFax,
+                    VendorAddress = string.Empty
+                },
+                DeptPrefix      = autoDeptPrefix,
+                LineItems       = poLineItems,
+                CurrentUserSam  = user.SamAcc,
+                CurrentUserName = user.FullName,
+                Issuers         = allEmployees,
+                Approvers       = allEmployees,
+                SourcePRIds     = idList
+            };
+
+            var title = prs.Count == 1
+                ? $"New PO from PR — {firstPR.PRNumber}"
+                : $"New PO from {prs.Count} PRs — {prNumbers}";
+
+            ViewData["Title"]           = title;
+            ViewData["SourcePRNumbers"] = prNumbers;
+            ViewData["BreadcrumbItems"] = new List<(string Label, string? Url)>
+            {
+                ("Dashboard", "/"),
+                ("PO Requests", "/PORequest"),
+                ("New PO from PR", "/PORequest/CreateFromPR"),
+                (prs.Count == 1 ? firstPR.PRNumber : $"{prs.Count} PRs", null)
+            };
+
+            return View("Create", vm);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(
@@ -91,8 +245,13 @@ namespace BTITPORequest.Controllers
             [FromForm] string selectedIssuerSam = "",
             [FromForm] string selectedApprover1Sam = "",
             [FromForm] string selectedApprover2Sam = "",
-            [FromForm] bool submitNow = false)
+            [FromForm] bool submitNow = false,
+            [FromForm] string deptPrefix = "IT",
+            [FromForm] List<int>? sourcePRIds = null)
         {
+            // Validate prefix
+            if (deptPrefix != "IT" && deptPrefix != "OS") deptPrefix = "IT";
+
             var user = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
 
@@ -103,6 +262,7 @@ namespace BTITPORequest.Controllers
                 return View(new POCreateViewModel
                 {
                     PO = po,
+                    DeptPrefix = deptPrefix,
                     CurrentUserSam  = user.SamAcc,
                     CurrentUserName = user.FullName,
                     Issuers   = allEmployees,
@@ -116,7 +276,11 @@ namespace BTITPORequest.Controllers
             RecalcTotals(po, lineItems);
             var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc,
                 selectedIssuerSam, selectedApprover1Sam, selectedApprover2Sam,
-                requesterDeptCode: user.DeptCode);
+                requesterDeptCode: user.DeptCode, deptPrefix: deptPrefix);
+
+            // Link PRs → PO Number (fire-and-forget, ไม่ block flow)
+            if (sourcePRIds != null && sourcePRIds.Count > 0 && !string.IsNullOrEmpty(po.PONumber))
+                _ = Task.Run(() => _poService.LinkPRsToPOAsync(sourcePRIds, po.PONumber));
 
             if (submitNow) await DoSubmitAsync(poId, po.PONumber, user);
 
@@ -178,10 +342,15 @@ namespace BTITPORequest.Controllers
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
-            po.CanEdit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
+            po.CanEdit   = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
             po.CanSubmit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
 
             bool isAdmin = user.Role == "Admin";
+
+            // ยกเลิกได้: creator หรือ Admin, เฉพาะ Draft/Requested/Issued
+            var cancellableStatuses = new[] { POStatus.Draft, POStatus.Requested, POStatus.Issued };
+            po.CanCancel = cancellableStatuses.Contains(po.Status)
+                && (po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase) || isAdmin);
 
             // assigned to this PO specifically
             bool isAssignedIssuer   = !string.IsNullOrEmpty(po.PreAssignedIssuerSam)
@@ -202,6 +371,71 @@ namespace BTITPORequest.Controllers
             po.CanDownloadPDF = po.Status == POStatus.Completed;
 
             return View(po);
+        }
+
+        // ── CANCEL ────────────────────────────────────────────
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Cancel(int id, string? remark)
+        {
+            var user = CurrentUser;
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+
+            bool isAdmin = user.Role == "Admin";
+            var cancellable = new[] { POStatus.Draft, POStatus.Requested, POStatus.Issued };
+
+            if (!cancellable.Contains(po.Status))
+            {
+                TempData["Error"] = "ไม่สามารถยกเลิก PO นี้ได้ (สถานะไม่อนุญาต)";
+                return RedirectToAction("Detail", new { id });
+            }
+
+            bool isOwner = po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
+            if (!isOwner && !isAdmin)
+            {
+                TempData["Error"] = "ไม่มีสิทธิ์ยกเลิก PO นี้";
+                return RedirectToAction("Detail", new { id });
+            }
+
+            var ok = await _poService.CancelPOAsync(id, user.SamAcc, user.FullName, remark);
+            if (ok)
+                TempData["Warning"] = $"PO {po.PONumber} ถูกยกเลิกเรียบร้อยแล้ว";
+            else
+                TempData["Error"] = "เกิดข้อผิดพลาดในการยกเลิก PO กรุณาลองใหม่";
+
+            return RedirectToAction("Detail", new { id });
+        }
+
+        // ── CLOSE PR (Goods Received) — Admin only ────────────
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> ClosePR(int prId, string? poNumber = null, string? remark = null)
+        {
+            var user = CurrentUser;
+            if (user.Role != "Admin")
+                return Json(new { success = false, message = "ไม่มีสิทธิ์ดำเนินการ (Admin only)" });
+
+            var (ok, prNumber, requesterEmail, requesterName) =
+                await _poService.ClosePRAsync(prId, user.SamAcc, user.FullName, poNumber, remark);
+
+            if (!ok)
+                return Json(new { success = false, message = "ไม่พบ PR หรือ PR ยังไม่ได้รับการ Authorize" });
+
+            // Fire-and-forget email แจ้ง PR creator
+            var prUrl = _config["AppSettings:PRRequestUrl"] ?? "";
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _mail.NotifyPRClosedAsync(
+                        requesterEmail, prNumber, user.FullName,
+                        poNumber, prId, prUrl, createdBy: user.SamAcc);
+                }
+                catch { }
+            });
+
+            return Json(new { success = true, message = $"ปิด PR {prNumber} เรียบร้อยแล้ว" });
         }
 
         // ── SUBMIT ────────────────────────────────────────────

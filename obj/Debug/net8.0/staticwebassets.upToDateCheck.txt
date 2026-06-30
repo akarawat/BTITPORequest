@@ -1,6 +1,8 @@
 wwwroot\css\site.css
+wwwroot\img\bernina_letterhead_logo.png
 wwwroot\img\letterhead_bottom.png
 wwwroot\img\letterhead_top.png
+wwwroot\img\swiss_heritage_logo.png
 wwwroot\js\admin-roles.js
 wwwroot\js\dashboard.js
 wwwroot\js\po-form.js

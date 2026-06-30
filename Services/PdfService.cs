@@ -94,13 +94,13 @@ namespace BTITPORequest.Services
             var fontB = LoadThaiFont(FontPathsBold, StandardFonts.HELVETICA_BOLD);
 
             // ── Header & Footer images via Page Event ─────────────
-            var imgTopPath = System.IO.Path.Combine(
-                Directory.GetCurrentDirectory(), "wwwroot", "img", "letterhead_top.png");
-            var imgBotPath = System.IO.Path.Combine(
-                Directory.GetCurrentDirectory(), "wwwroot", "img", "letterhead_bottom.png");
+            var imgLogoPath = System.IO.Path.Combine(
+                Directory.GetCurrentDirectory(), "wwwroot", "img", "bernina_letterhead_logo.png");
+            var imgSwissPath = System.IO.Path.Combine(
+                Directory.GetCurrentDirectory(), "wwwroot", "img", "swiss_heritage_logo.png");
 
             pdf.AddEventHandler(PdfDocumentEvent.END_PAGE,
-                new LetterheadPageEvent(imgTopPath, imgBotPath));
+                new LetterheadPageEvent(imgLogoPath, imgSwissPath));
 
             // ── PO Title ──────────────────────────────────────
             var title = new Table(UnitValue.CreatePercentArray(new float[] { 50, 50 })).UseAllAvailableWidth().SetMarginBottom(6);
@@ -110,7 +110,10 @@ namespace BTITPORequest.Services
             title.AddCell(tL);
             var tR = new Cell().SetBorder(Border.NO_BORDER).SetTextAlignment(TextAlignment.RIGHT);
             tR.Add(new Paragraph($"Date:  {po.PODate:M/d/yyyy}").SetFont(fontR).SetFontSize(9));
-            tR.Add(new Paragraph($"For BT. Internal Ref.: A/C   {po.InternalRefAC}").SetFont(fontR).SetFontSize(9));
+            if (!string.IsNullOrEmpty(po.InternalRefAC))
+                tR.Add(new Paragraph($"For BT. Internal Ref.: A/C   {po.InternalRefAC}").SetFont(fontR).SetFontSize(9));
+            if (!string.IsNullOrEmpty(po.CreditNo))
+                tR.Add(new Paragraph($"Credit No:  {po.CreditNo}").SetFont(fontR).SetFontSize(9));
             title.AddCell(tR);
             doc.Add(title);
 
@@ -126,6 +129,45 @@ namespace BTITPORequest.Services
             LabelVal("Tel No.:", po.VendorTel + "     Fax No.:  " + po.VendorFax);
             LabelVal("E-mail:", po.VendorEmail);
             LabelVal("Ref.:", po.RefNo);
+
+            // ── Reference fields (optional) ──────────────────
+            bool hasRef2 = !string.IsNullOrEmpty(po.InternalContact) || !string.IsNullOrEmpty(po.OldPONumber)
+                        || !string.IsNullOrEmpty(po.WorkOrderNo)     || !string.IsNullOrEmpty(po.NCRNo)
+                        || !string.IsNullOrEmpty(po.IRCRNo)          || !string.IsNullOrEmpty(po.ChangeNo);
+            if (hasRef2)
+            {
+                var refTbl2 = new Table(UnitValue.CreatePercentArray(new float[] { 33, 33, 34 }))
+                    .UseAllAvailableWidth().SetMarginBottom(2);
+
+                void RefCell2(string label, string? val)
+                {
+                    var c = new Cell().SetBorder(Border.NO_BORDER);
+                    if (!string.IsNullOrEmpty(val))
+                        c.Add(new Paragraph().SetFont(fontR).SetFontSize(8.5f).SetMarginBottom(1)
+                            .Add(new Text(label + "  ").SetFont(fontB))
+                            .Add(new Text(val)));
+                    else
+                        c.Add(new Paragraph(" ").SetFont(fontR).SetFontSize(8.5f));
+                    refTbl2.AddCell(c);
+                }
+
+                RefCell2("Contact:", po.InternalContact);
+                RefCell2("Ref. Old PO:", po.OldPONumber);
+                RefCell2("", null);
+                RefCell2("WO No.:", po.WorkOrderNo);
+                RefCell2("NCR No.:", po.NCRNo);
+                RefCell2("IR/CR No.:", po.IRCRNo);
+                if (!string.IsNullOrEmpty(po.ChangeNo))
+                {
+                    var cc2 = new Cell(1, 3).SetBorder(Border.NO_BORDER);
+                    cc2.Add(new Paragraph().SetFont(fontR).SetFontSize(8.5f).SetMarginBottom(1)
+                        .Add(new Text("Change No.:  ").SetFont(fontB))
+                        .Add(new Text(po.ChangeNo)));
+                    refTbl2.AddCell(cc2);
+                }
+                doc.Add(refTbl2);
+            }
+
             doc.Add(new Paragraph($"Subject:  {po.Subject}").SetFont(fontR).SetFontSize(9).SetMarginBottom(8));
 
             // ── Line Items ────────────────────────────────────
@@ -277,7 +319,7 @@ namespace BTITPORequest.Services
 
                 canvas.BeginText()
                       .SetFontAndSize(fontR, 7f)
-                      .MoveText(xRight, 62f)
+                      .MoveText(xRight, 70f)
                       .ShowText(pageNum)
                       .EndText()
                       .Release();
@@ -364,6 +406,46 @@ namespace BTITPORequest.Services
                 doc.Add(contactTable);
             }
             if (!string.IsNullOrEmpty(po.RefNo)) LabelVal("Ref.:", po.RefNo);
+
+            // ── Reference fields (optional) ──────────────────
+            bool hasRef = !string.IsNullOrEmpty(po.InternalContact) || !string.IsNullOrEmpty(po.OldPONumber)
+                       || !string.IsNullOrEmpty(po.WorkOrderNo)     || !string.IsNullOrEmpty(po.NCRNo)
+                       || !string.IsNullOrEmpty(po.IRCRNo)          || !string.IsNullOrEmpty(po.ChangeNo);
+            if (hasRef)
+            {
+                var refTbl = new Table(UnitValue.CreatePercentArray(new float[] { 33, 33, 34 }))
+                    .UseAllAvailableWidth().SetMarginBottom(2);
+
+                void RefCell(string label, string? val)
+                {
+                    var c = new Cell().SetBorder(Border.NO_BORDER);
+                    if (!string.IsNullOrEmpty(val))
+                        c.Add(new Paragraph().SetFont(fontR).SetFontSize(8.5f).SetMarginBottom(1)
+                            .Add(new Text(label + "  ").SetFont(fontB))
+                            .Add(new Text(val)));
+                    else
+                        c.Add(new Paragraph(" ").SetFont(fontR).SetFontSize(8.5f));
+                    refTbl.AddCell(c);
+                }
+
+                RefCell("Contact:", po.InternalContact);
+                RefCell("Ref. Old PO:", po.OldPONumber);
+                RefCell("", null);   // spacer
+                RefCell("WO No.:", po.WorkOrderNo);
+                RefCell("NCR No.:", po.NCRNo);
+                RefCell("IR/CR No.:", po.IRCRNo);
+                if (!string.IsNullOrEmpty(po.ChangeNo))
+                {
+                    var cc = new Cell(1, 3).SetBorder(Border.NO_BORDER);
+                    cc.Add(new Paragraph().SetFont(fontR).SetFontSize(8.5f).SetMarginBottom(1)
+                        .Add(new Text("Change No.:  ").SetFont(fontB))
+                        .Add(new Text(po.ChangeNo)));
+                    refTbl.AddCell(cc);
+                }
+
+                doc.Add(refTbl);
+            }
+
             doc.Add(new Paragraph($"Subject:  {po.Subject}").SetFont(fontR).SetFontSize(9).SetMarginBottom(8));
 
             // ── Line Items ────────────────────────────────────
@@ -495,16 +577,36 @@ namespace BTITPORequest.Services
     }
 }
 
-// ── Page Event: วาด letterhead image บน header + footer ทุกหน้า ──
+// ── Page Event: วาด letterhead header + footer ทุกหน้า ──
+// Header: BERNINA logo (top-left)
+// Footer: company info text (left) + Swiss Heritage logo (right)
 public class LetterheadPageEvent : IEventHandler
 {
-    private readonly string _topImagePath;
-    private readonly string _botImagePath;
+    private readonly string _logoPath;
+    private readonly string _swissLogoPath;
 
-    public LetterheadPageEvent(string topImagePath, string botImagePath)
+    private static readonly string[] ThaiRegularPaths = {
+        @"C:\Windows\Fonts\tahoma.ttf",
+        @"C:\Windows\Fonts\arial.ttf",
+    };
+    private static readonly string[] ThaiBoldPaths = {
+        @"C:\Windows\Fonts\tahomabd.ttf",
+        @"C:\Windows\Fonts\arialbd.ttf",
+    };
+
+    public LetterheadPageEvent(string logoPath, string swissLogoPath)
     {
-        _topImagePath = topImagePath;
-        _botImagePath = botImagePath;
+        _logoPath = logoPath;
+        _swissLogoPath = swissLogoPath;
+    }
+
+    private static PdfFont LoadFont(string[] paths)
+    {
+        foreach (var p in paths)
+            if (System.IO.File.Exists(p))
+                return PdfFontFactory.CreateFont(p, PdfEncodings.IDENTITY_H,
+                       PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+        return PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
     }
 
     public void HandleEvent(Event @event)
@@ -518,33 +620,87 @@ public class LetterheadPageEvent : IEventHandler
         float pageW = pageSize.GetWidth();   // A4 = 595 pt
         float pageH = pageSize.GetHeight();  // A4 = 842 pt
 
-        // ── Header image ──────────────────────────────────────
-        if (System.IO.File.Exists(_topImagePath))
+        // ── Header: BERNINA logo (top-left) ──────────────────────
+        if (System.IO.File.Exists(_logoPath))
         {
             try
             {
-                var imgData = ImageDataFactory.Create(_topImagePath);
-                float hdrH = 42f;
-                float hdrY = pageH - hdrH - 8f;
+                var imgData = ImageDataFactory.Create(_logoPath);
+                // Aspect ratio ของรูปจริง: 246×68 px → ratio 3.618
+                // กำหนด height แล้วคำนวณ width เพื่อให้ถูกสัดส่วน
+                float logoH = 45f;
+                float logoW = logoH * (246f / 68f);  // = 163pt
+                float logoY = pageH - logoH - 8f;   // ~786 pt from bottom
                 canvas.AddImageFittedIntoRectangle(imgData,
-                    new Rectangle(20f, hdrY, pageW - 40f, hdrH), false);
+                    new Rectangle(20f, logoY, logoW, logoH), false);
             }
             catch { }
         }
 
-        // ── Footer image ──────────────────────────────────────
-        if (System.IO.File.Exists(_botImagePath))
+        // ── Footer: thin rule ─────────────────────────────────────
+        canvas.SaveState()
+              .SetLineWidth(0.5f)
+              .SetStrokeColor(new DeviceRgb(0xCC, 0xCC, 0xCC))
+              .MoveTo(20f, 66f)
+              .LineTo(pageW - 20f, 66f)
+              .Stroke()
+              .RestoreState();
+
+        // ── Footer: Swiss Heritage logo (right) ──────────────────
+        float swissSize = 46f;
+        float swissX = pageW - swissSize - 18f;
+        if (System.IO.File.Exists(_swissLogoPath))
         {
             try
             {
-                var imgData = ImageDataFactory.Create(_botImagePath);
-                float ftrH = 50f;
-                float ftrY = 8f;
-                canvas.AddImageFittedIntoRectangle(imgData,
-                    new Rectangle(20f, ftrY, pageW - 40f, ftrH), false);
+                var swissData = ImageDataFactory.Create(_swissLogoPath);
+                canvas.AddImageFittedIntoRectangle(swissData,
+                    new Rectangle(swissX, 10f, swissSize, swissSize), false);
             }
             catch { }
         }
+
+        // ── Footer: company info text (left) ─────────────────────
+        try
+        {
+            var fontR = LoadFont(ThaiRegularPaths);
+            var fontB = LoadFont(ThaiBoldPaths);
+            var darkGray = new DeviceRgb(0x33, 0x33, 0x33);
+            var black    = new DeviceRgb(0x00, 0x00, 0x00);
+
+            // "BERNINA (Thailand) Co.,Ltd" — bold
+            canvas.BeginText()
+                  .SetFontAndSize(fontB, 8f)
+                  .SetFillColor(black)
+                  .MoveText(20f, 53f)
+                  .ShowText("BERNINA (Thailand) Co.,Ltd")
+                  .EndText();
+
+            // English address + phone
+            canvas.BeginText()
+                  .SetFontAndSize(fontR, 6.5f)
+                  .SetFillColor(darkGray)
+                  .MoveText(20f, 44f)
+                  .ShowText("79/1 Moo 4 Banklang Muang Lamphun 51000 Thailand  T +66 (0)53 581 343 - 9")
+                  .EndText();
+
+            // Thai address
+            canvas.BeginText()
+                  .SetFontAndSize(fontR, 6.5f)
+                  .SetFillColor(darkGray)
+                  .MoveText(20f, 35f)
+                  .ShowText("บริษัท เบอร์นิน่า (ประเทศไทย) จำกัด  เลขที่ 79/1  หมู่ 4  ต.บ้านกลาง  อ.เมือง  จ.ลำพูน  51000")
+                  .EndText();
+
+            // Email / website
+            canvas.BeginText()
+                  .SetFontAndSize(fontR, 6.5f)
+                  .SetFillColor(darkGray)
+                  .MoveText(20f, 26f)
+                  .ShowText("info@berninathailand.com; bernina.com")
+                  .EndText();
+        }
+        catch { }
 
         canvas.Release();
     }

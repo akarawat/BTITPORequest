@@ -9,3 +9,68 @@
     };
 }
 @await Html.PartialAsync("Create", Model)
+
+@section Scripts {
+    <script src="~/js/po-form.js" asp-append-version="true"></script>
+    <script src="~/js/vendor-autocomplete.js" asp-append-version="true"></script>
+    <script>
+        var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+            Model.LineItems,
+            new Newtonsoft.Json.JsonSerializerSettings {
+                ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
+            }));
+        initPOForm(initialItems);
+
+        // ── Person Search (Issued / Authorized) ──────────────
+        function initPersonSearch(searchId, dropdownId, hiddenId, displayId, initSam) {
+            var $search   = document.getElementById(searchId);
+            var $dropdown = document.getElementById(dropdownId);
+            var $hidden   = document.getElementById(hiddenId);
+            var $display  = document.getElementById(displayId);
+
+            function setSelected(sam, name) {
+                $hidden.value  = sam;
+                $search.value  = name;
+                $display.innerHTML = sam ? '<i class="bi bi-check-circle-fill me-1"></i>' + name + ' (' + sam + ')' : '';
+                $dropdown.classList.add('d-none');
+                $dropdown.innerHTML = '';
+            }
+
+            if (initSam) {
+                var found = _hrEmployees.find(function(e) { return e.sam === initSam; });
+                if (found) setSelected(found.sam, found.name);
+            }
+
+            $search.addEventListener('input', function() {
+                var q = this.value.trim().toLowerCase();
+                $hidden.value = '';
+                $display.innerHTML = '';
+                if (q.length < 1) { $dropdown.classList.add('d-none'); return; }
+                var matches = _hrEmployees.filter(function(e) {
+                    return e.name.toLowerCase().includes(q) || e.sam.toLowerCase().includes(q);
+                }).slice(0, 20);
+                if (!matches.length) { $dropdown.classList.add('d-none'); return; }
+                $dropdown.innerHTML = matches.map(function(e) {
+                    return '<button type="button" class="list-group-item list-group-item-action py-1 px-2" style="font-size:.82rem;" ' +
+                           'data-sam="' + e.sam + '" data-name="' + e.name + '">' +
+                           '<span class="fw-semibold">' + e.name + '</span> ' +
+                           '<span class="text-muted">(' + e.sam + ')</span></button>';
+                }).join('');
+                $dropdown.classList.remove('d-none');
+            });
+
+            $dropdown.addEventListener('click', function(ev) {
+                var btn = ev.target.closest('button[data-sam]');
+                if (btn) setSelected(btn.dataset.sam, btn.dataset.name);
+            });
+
+            document.addEventListener('click', function(ev) {
+                if (!$search.contains(ev.target) && !$dropdown.contains(ev.target))
+                    $dropdown.classList.add('d-none');
+            });
+        }
+
+        initPersonSearch('issuerSearch',   'issuerDropdown',   'selectedIssuerSam',    'issuerDisplay',   '@Model.SelectedIssuerSam');
+        initPersonSearch('approverSearch', 'approverDropdown', 'selectedApprover1Sam', 'approverDisplay', '@Model.SelectedApprover1Sam');
+    </script>
+}

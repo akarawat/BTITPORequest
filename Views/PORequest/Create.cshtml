@@ -27,6 +27,13 @@
         <input type="hidden" asp-for="PO.POId" />
     }
     <input type="hidden" id="lineItemsJson" name="lineItemsJson" />
+    @* DeptPrefix hidden — ค่าเปลี่ยนโดย radio button ด้านล่าง *@
+    <input type="hidden" id="deptPrefixInput" name="deptPrefix" value="@Model.DeptPrefix" />
+    @* SourcePRIds — PRs ที่ใช้สร้าง PO นี้ (สำหรับ Link PR→PO) *@
+    @foreach (var prId in Model.SourcePRIds)
+    {
+        <input type="hidden" name="sourcePRIds" value="@prId" />
+    }
 
     <div class="row g-3">
         <!-- Left column: Vendor & Header -->
@@ -38,6 +45,32 @@
                     <h6 class="fw-semibold mb-0"><i class="bi bi-file-earmark me-2 text-primary"></i>PO Header</h6>
                 </div>
                 <div class="card-body">
+                    @if (!isEdit)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-tag me-1 text-primary"></i>Department / PO Series
+                            </label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input dept-radio" type="radio" name="_deptRadio"
+                                           id="deptIT" value="IT" @(Model.DeptPrefix == "IT" ? "checked" : "") />
+                                    <label class="form-check-label fw-semibold" for="deptIT">
+                                        <span class="badge bg-primary me-1">IT</span> IT Inventory
+                                        <small class="text-muted">(IT-YY-NNNNN)</small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input dept-radio" type="radio" name="_deptRadio"
+                                           id="deptOS" value="OS" @(Model.DeptPrefix == "OS" ? "checked" : "") />
+                                    <label class="form-check-label fw-semibold" for="deptOS">
+                                        <span class="badge bg-success me-1">OS</span> Office Stationery
+                                        <small class="text-muted">(OS-YY-NNNNN)</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    }
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
@@ -59,6 +92,45 @@
                             <label class="form-label fw-semibold">Subject <span class="text-danger">*</span></label>
                             <input type="text" asp-for="PO.Subject" class="form-control"
                                    placeholder="please supply the following goods / services to us:" required />
+                        </div>
+
+                        @* ── Reference fields (optional, backward-compat) ── *@
+                        <div class="col-12">
+                            <hr class="my-1" />
+                            <p class="text-muted mb-2" style="font-size:.8rem;">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Reference fields (optional) — สำหรับอ้างอิงกับระบบเดิม
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Ref. Old PO No.</label>
+                            <input type="text" asp-for="PO.OldPONumber" class="form-control"
+                                   placeholder="เลข PO เดิม" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Internal Contact</label>
+                            <input type="text" asp-for="PO.InternalContact" class="form-control"
+                                   placeholder="ผู้ติดต่อภายใน" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Work Order No.</label>
+                            <input type="text" asp-for="PO.WorkOrderNo" class="form-control"
+                                   placeholder="WO No." />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">NCR No.</label>
+                            <input type="text" asp-for="PO.NCRNo" class="form-control"
+                                   placeholder="NCR No." />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">IR/CR No.</label>
+                            <input type="text" asp-for="PO.IRCRNo" class="form-control"
+                                   placeholder="IR/CR No." />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Change No.</label>
+                            <input type="text" asp-for="PO.ChangeNo" class="form-control"
+                                   placeholder="Change No." />
                         </div>
                     </div>
                 </div>
@@ -257,6 +329,12 @@
                             id="submitAndSignBtn">
                         <i class="bi bi-send me-2"></i>Submit & Sign
                     </button>
+                    @if (isEdit)
+                    {
+                        <a href="/PORequest/Detail/@Model.PO.POId" class="btn btn-outline-danger">
+                            <i class="bi bi-x-circle me-2"></i>ยกเลิก (ไม่บันทึก)
+                        </a>
+                    }
                 </div>
             </div>
 
@@ -282,8 +360,19 @@
     <script src="~/js/po-form.js" asp-append-version="true"></script>
     <script src="~/js/vendor-autocomplete.js" asp-append-version="true"></script>
     <script>
-        var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.LineItems));
+        var initialItems = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+            Model.LineItems,
+            new Newtonsoft.Json.JsonSerializerSettings {
+                ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
+            }));
         initPOForm(initialItems);
+
+        // ── Dept prefix radio → hidden input ─────────────────
+        document.querySelectorAll('.dept-radio').forEach(function(r) {
+            r.addEventListener('change', function() {
+                document.getElementById('deptPrefixInput').value = this.value;
+            });
+        });
 
         // ── Person Search (Issued / Authorized) ──────────────
         function initPersonSearch(searchId, dropdownId, hiddenId, displayId, initSam) {

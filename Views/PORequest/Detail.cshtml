@@ -35,6 +35,13 @@
                 <i class="bi bi-pencil me-1"></i>Edit
             </a>
         }
+        @if (Model.CanCancel)
+        {
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#cancelModal">
+                <i class="bi bi-x-circle me-1"></i>ยกเลิก PO
+            </button>
+        }
         @if (Model.CanDownloadPDF)
         {
             <a asp-action="DownloadPdf" asp-route-id="@Model.POId" class="btn btn-success btn-sm">
@@ -643,4 +650,48 @@
                 });
             });
     </script>
+}
+
+@if (Model.CanCancel)
+{
+    <!-- Cancel PO Modal -->
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="Cancel" asp-route-id="@Model.POId" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-danger" id="cancelModalLabel">
+                            <i class="bi bi-x-circle me-2"></i>ยกเลิก PO
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning d-flex gap-2 align-items-center py-2" style="font-size:.88rem;">
+                            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                            <div>
+                                กำลังจะยกเลิก <strong>@Model.PONumber</strong>
+                                (สถานะ: <strong>@Model.StatusLabel</strong>)
+                                <br>การยกเลิกนี้ไม่สามารถเปลี่ยนกลับได้
+                            </div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" style="font-size:.9rem;">เหตุผลการยกเลิก <span class="text-muted fw-normal">(ไม่บังคับ)</span></label>
+                            <textarea name="remark" class="form-control" rows="3"
+                                      placeholder="ระบุเหตุผล เช่น เปลี่ยนแผน, ข้อมูลผิดพลาด ฯลฯ"
+                                      style="font-size:.88rem;"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                            ปิด
+                        </button>
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="bi bi-x-circle me-1"></i>ยืนยันยกเลิก PO
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 }

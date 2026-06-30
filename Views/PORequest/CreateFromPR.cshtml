@@ -1,0 +1,519 @@
+@model BTITPORequest.Models.CreateFromPRViewModel
+@{
+    ViewData["Title"] = "New PO from PR";
+    ViewData["BreadcrumbItems"] = ViewData["BreadcrumbItems"]
+        ?? new List<(string, string?)> { ("Dashboard", "/"), ("PO Requests", "/PORequest"), ("New PO from PR", null) };
+    bool isAdminView = User.IsInRole("Admin");
+}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h4 class="fw-bold mb-0">
+            <i class="bi bi-file-earmark-arrow-up me-2 text-success"></i>New PO from PR
+        </h4>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+@* ── Tab Navigation ───────────────────────────────────────── *@
+<ul class="nav nav-tabs mb-3" id="prTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-pending-btn" data-bs-toggle="tab"
+                data-bs-target="#tab-pending" type="button" role="tab">
+            <i class="bi bi-hourglass-split me-1 text-warning"></i>
+            รอสร้าง PO
+            @if (Model.PRList.Any())
+            {
+                <span class="badge bg-warning text-dark ms-1">@Model.PRList.Count(p => !p.HasLinkedPO)</span>
+            }
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-closed-btn" data-bs-toggle="tab"
+                data-bs-target="#tab-closed" type="button" role="tab">
+            <i class="bi bi-check2-circle me-1 text-success"></i>
+            Goods Received
+            @if (Model.ClosedPRList.Any())
+            {
+                <span class="badge bg-success ms-1">@Model.ClosedPRList.Count</span>
+            }
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+@* ══ TAB 1: รอสร้าง PO ══════════════════════════════════════ *@
+<div class="tab-pane fade show active" id="tab-pending" role="tabpanel">
+@if (!Model.PRList.Any())
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+            <div class="fw-semibold">ไม่มี PR ที่รอดำเนินการ PO</div>
+            <div class="small mt-1">PR ที่ได้รับการ Authorize แล้วจะแสดงที่นี่</div>
+        </div>
+    </div>
+}
+else
+{
+    <form id="multiPRForm" asp-action="CreateFromPRMulti" method="post">
+
+        <!-- Action bar -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="selectAll">
+                    <label class="form-check-label fw-semibold" for="selectAll" style="font-size:.88rem;">
+                        เลือกทั้งหมด
+                    </label>
+                </div>
+                <span id="selectedCount" class="text-muted small">ยังไม่ได้เลือก</span>
+                <div class="ms-auto d-flex gap-2">
+                    <input type="text" id="prSearch" class="form-control form-control-sm"
+                           placeholder="ค้นหา PR..." style="min-width:180px;">
+                    <button type="submit" id="createPOBtn" class="btn btn-success btn-sm" disabled>
+                        <i class="bi bi-plus-circle me-1"></i>
+                        <span id="createBtnLabel">Create PO</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PR Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="prTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:44px;"></th>
+                                <th style="width:130px;">PR Number</th>
+                                <th>Subject / Reason</th>
+                                <th style="width:160px;">Supplier</th>
+                                <th style="width:110px;">Dept</th>
+                                <th style="width:110px;" class="text-end">Amount (THB)</th>
+                                <th style="width:100px;">Authorized</th>
+                                @if (isAdminView)
+                                {
+                                    <th style="width:90px;" class="text-center text-danger">
+                                        <i class="bi bi-check2-circle me-1"></i>ปิด PR
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var pr in Model.PRList)
+                            {
+                                <tr class="pr-row @(pr.HasLinkedPO ? "table-secondary" : "")"
+                                    data-search="@pr.PRNumber @pr.ReasonToOrder @pr.SupplierCompany @pr.LinkedDeptName"
+                                    data-dept-id="@(pr.LinkedDeptId ?? 0)"
+                                    data-pr-id="@pr.PRId"
+                                    style="cursor:@(pr.HasLinkedPO ? "default" : "pointer");"
+                                    @(pr.HasLinkedPO ? "" : "onclick=\"toggleRow(this)\"")>
+                                    <td onclick="event.stopPropagation()">
+                                        @if (pr.HasLinkedPO)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle"
+                                                  style="font-size:.72rem;" title="เปิด PO แล้ว">
+                                                <i class="bi bi-check-circle me-1"></i>@pr.LinkedPONumber
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input pr-checkbox" type="checkbox"
+                                                       name="prIds" value="@pr.PRId"
+                                                       onclick="event.stopPropagation(); updateSelection()">
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold text-primary" style="font-size:.85rem;">@pr.PRNumber</span>
+                                    </td>
+                                    <td>
+                                        <div style="max-width:280px;" class="text-truncate" title="@pr.ReasonToOrder">
+                                            @pr.ReasonToOrder
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(pr.RequesterName))
+                                        {
+                                            <div class="text-muted" style="font-size:.78rem;">
+                                                <i class="bi bi-person me-1"></i>@pr.RequesterName
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width:150px;font-size:.85rem;"
+                                             title="@pr.SupplierCompany">
+                                            @(string.IsNullOrEmpty(pr.SupplierCompany) ? "—" : pr.SupplierCompany)
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:.78rem;">
+                                            @(string.IsNullOrEmpty(pr.LinkedDeptName) ? "—" : pr.LinkedDeptName)
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-semibold" style="font-size:.9rem;">
+                                        @pr.GrandTotal.ToString("N2")
+                                    </td>
+                                    <td class="text-muted" style="font-size:.78rem;">
+                                        @pr.UpdatedAt.ToString("dd/MM/yy HH:mm")
+                                    </td>
+                                    @if (isAdminView)
+                                    {
+                                        <td class="text-center" onclick="event.stopPropagation()">
+                                            <button type="button" class="btn btn-sm btn-outline-danger close-pr-btn"
+                                                    title="ปิด PR — สินค้าถึงแล้ว"
+                                                    data-pr-id="@pr.PRId"
+                                                    data-pr-number="@pr.PRNumber">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary bar (visible when ≥1 selected) -->
+        <div id="summaryBar" class="card border-success shadow-sm mt-3 d-none">
+            <div class="card-body py-2 d-flex align-items-center gap-3">
+                <i class="bi bi-check2-circle text-success fs-5"></i>
+                <div>
+                    <span class="fw-semibold text-success">เลือกแล้ว <span id="summaryCount">0</span> PR</span>
+                    <span class="text-muted small ms-2">รวม <span id="summaryTotal">0.00</span> THB</span>
+                </div>
+                <div class="ms-auto">
+                    <span class="text-muted small">PR: <span id="summaryPRNos" class="fw-semibold text-dark"></span></span>
+                </div>
+            </div>
+        </div>
+
+    </form>
+}
+</div>@* end tab-pane #tab-pending *@
+
+@* ══ TAB 2: Goods Received (Audit) ══════════════════════════ *@
+<div class="tab-pane fade" id="tab-closed" role="tabpanel">
+    @if (!Model.ClosedPRList.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5 text-muted">
+                <i class="bi bi-archive fs-1 d-block mb-3 opacity-50"></i>
+                <div class="fw-semibold">ยังไม่มี PR ที่ถูกปิด</div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:130px;">PR Number</th>
+                                <th>Subject / Reason</th>
+                                <th style="width:160px;">Supplier</th>
+                                <th style="width:110px;">Dept</th>
+                                <th style="width:120px;" class="text-end">Amount (THB)</th>
+                                <th style="width:130px;">Linked PO</th>
+                                <th style="width:150px;">ปิดโดย</th>
+                                <th style="width:110px;">วันที่ปิด</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var pr in Model.ClosedPRList)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="fw-semibold text-secondary" style="font-size:.85rem;">@pr.PRNumber</span>
+                                    </td>
+                                    <td>
+                                        <div style="max-width:260px;" class="text-truncate" title="@pr.ReasonToOrder">
+                                            @pr.ReasonToOrder
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(pr.RequesterName))
+                                        {
+                                            <div class="text-muted" style="font-size:.78rem;">
+                                                <i class="bi bi-person me-1"></i>@pr.RequesterName
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width:150px;font-size:.85rem;"
+                                             title="@pr.SupplierCompany">
+                                            @(string.IsNullOrEmpty(pr.SupplierCompany) ? "—" : pr.SupplierCompany)
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:.78rem;">
+                                            @(string.IsNullOrEmpty(pr.LinkedDeptName) ? "—" : pr.LinkedDeptName)
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-semibold" style="font-size:.9rem;">
+                                        @pr.GrandTotal.ToString("N2")
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(pr.LinkedPONumber))
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:.78rem;">
+                                                <i class="bi bi-file-earmark-check me-1"></i>@pr.LinkedPONumber
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">—</span>
+                                        }
+                                    </td>
+                                    <td style="font-size:.82rem;">
+                                        <div class="fw-semibold">@(pr.ClosedByName ?? pr.ClosedBy ?? "—")</div>
+                                        @if (!string.IsNullOrEmpty(pr.CloseRemark))
+                                        {
+                                            <div class="text-muted text-truncate" style="max-width:140px;" title="@pr.CloseRemark">
+                                                @pr.CloseRemark
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="text-muted" style="font-size:.78rem;">
+                                        @(pr.ClosedDate.HasValue ? pr.ClosedDate.Value.ToString("dd/MM/yy HH:mm") : "—")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>@* end tab-pane #tab-closed *@
+
+</div>@* end tab-content *@
+
+@* ── Modal: ยืนยันปิด PR (Admin only) ─────────────────────── *@
+@if (isAdminView)
+{
+    <div class="modal fade" id="closePRModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-x-circle me-2"></i>ปิด PR — สินค้าถึงแล้ว
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        PR นี้จะถูกเปลี่ยนสถานะเป็น <strong>Goods Received</strong> และ<strong>ไม่แสดง</strong>ในรายการนี้อีก
+                    </div>
+                    <p class="mb-2">PR: <strong id="closePRNumber">—</strong></p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">PO Number ที่เชื่อมอยู่ <small class="text-muted">(optional)</small></label>
+                        <input type="text" id="closePONumber" class="form-control"
+                               placeholder="เช่น IT-25-00001" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">หมายเหตุ <small class="text-muted">(optional)</small></label>
+                        <input type="text" id="closeRemark" class="form-control" placeholder="บันทึกเพิ่มเติม" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-danger" id="confirmClosePRBtn">
+                        <i class="bi bi-check2 me-1"></i>ยืนยัน ปิด PR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // ── Data from server ──────────────────────────────────
+        var _prData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.PRList.Select(p => new {
+            prId        = p.PRId,
+            prNumber    = p.PRNumber,
+            grandTotal  = p.GrandTotal,
+            linkedDeptId = p.LinkedDeptId ?? 0
+        })));
+
+        var _lockedDeptId = null;  // null = ยังไม่ได้ lock แผนก
+
+        // ── Toggle row on click ───────────────────────────────
+        function toggleRow(row) {
+            var cb = row.querySelector('.pr-checkbox');
+            cb.checked = !cb.checked;
+            updateSelection();
+        }
+
+        // ── Update selection state + dept lock ───────────────
+        function updateSelection() {
+            var checked = document.querySelectorAll('.pr-checkbox:checked');
+            var count   = checked.length;
+            var btn     = document.getElementById('createPOBtn');
+            var countEl = document.getElementById('selectedCount');
+            var bar     = document.getElementById('summaryBar');
+
+            // Dept lock: ถ้ามีเลือกอยู่ให้ lock แผนกจาก row แรกที่ checked
+            if (count > 0) {
+                _lockedDeptId = checked[0].closest('tr').getAttribute('data-dept-id');
+            } else {
+                _lockedDeptId = null;
+            }
+
+            // ซ่อน/แสดง row ตาม dept lock และ search filter
+            var searchQ = (document.getElementById('prSearch').value || '').toLowerCase();
+            document.querySelectorAll('.pr-row').forEach(function(row) {
+                var rowDept     = row.getAttribute('data-dept-id');
+                var cb          = row.querySelector('.pr-checkbox');
+                var isLinked    = cb === null;  // row ที่เปิด PO แล้วไม่มี checkbox
+                var matchSearch = row.getAttribute('data-search').toLowerCase().includes(searchQ);
+                var diffDept    = !isLinked && _lockedDeptId !== null && rowDept !== _lockedDeptId && !cb.checked;
+                row.style.display = (diffDept || !matchSearch) ? 'none' : '';
+            });
+
+            // Highlight selected rows
+            document.querySelectorAll('.pr-checkbox').forEach(function(cb) {
+                cb.closest('tr').classList.toggle('table-success', cb.checked);
+            });
+
+            if (count === 0) {
+                btn.disabled = true;
+                countEl.textContent = 'ยังไม่ได้เลือก';
+                bar.classList.add('d-none');
+                document.getElementById('selectAll').indeterminate = false;
+                document.getElementById('selectAll').checked = false;
+            } else {
+                btn.disabled = false;
+                countEl.textContent = 'เลือกแล้ว ' + count + ' รายการ';
+                document.getElementById('createBtnLabel').textContent =
+                    count === 1 ? 'Create PO' : 'Create PO จาก ' + count + ' PR';
+
+                // Summary bar
+                var selectedIds = Array.from(checked).map(function(cb) { return parseInt(cb.value); });
+                var selected    = _prData.filter(function(p) { return selectedIds.includes(p.prId); });
+                var total       = selected.reduce(function(s, p) { return s + p.grandTotal; }, 0);
+                var prNos       = selected.map(function(p) { return p.prNumber; }).join(', ');
+
+                document.getElementById('summaryCount').textContent = count;
+                document.getElementById('summaryTotal').textContent = total.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+                document.getElementById('summaryPRNos').textContent = prNos;
+                bar.classList.remove('d-none');
+
+                // Select-all indeterminate — นับเฉพาะ visible row ของ dept เดียวกัน
+                var visible_rows = document.querySelectorAll('.pr-row:not([style*="display: none"]) .pr-checkbox').length;
+                document.getElementById('selectAll').indeterminate = count > 0 && count < visible_rows;
+                document.getElementById('selectAll').checked = count > 0 && count === visible_rows;
+            }
+        }
+
+        // ── Select All (เฉพาะ visible rows) ──────────────────
+        document.getElementById('selectAll').addEventListener('change', function() {
+            var visible = document.querySelectorAll('.pr-row:not([style*="display: none"]) .pr-checkbox');
+            visible.forEach(function(cb) { cb.checked = this.checked; }, this);
+            updateSelection();
+        });
+
+        // ── Search filter ─────────────────────────────────────
+        document.getElementById('prSearch').addEventListener('input', function() {
+            var q = this.value.toLowerCase();
+            document.querySelectorAll('.pr-row').forEach(function(row) {
+                var rowDept  = row.getAttribute('data-dept-id');
+                var cb       = row.querySelector('.pr-checkbox');
+                var isLinked = cb === null;
+                var diffDept = !isLinked && _lockedDeptId !== null && rowDept !== _lockedDeptId && !cb.checked;
+                var matchSearch = row.getAttribute('data-search').toLowerCase().includes(q);
+                row.style.display = (diffDept || !matchSearch) ? 'none' : '';
+            });
+        });
+
+@if (isAdminView)
+{
+    <text>
+        // ── ปิด PR — Admin only ───────────────────────────────
+        var _closePRId = null;
+
+        // 1. Open modal when clicking "ปิด PR" button
+        document.querySelectorAll('.close-pr-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                _closePRId = parseInt(this.getAttribute('data-pr-id'));
+                var prNum  = this.getAttribute('data-pr-number');
+                document.getElementById('closePRNumber').textContent = prNum;
+                document.getElementById('closePONumber').value = '';
+                document.getElementById('closeRemark').value  = '';
+                var modal = new bootstrap.Modal(document.getElementById('closePRModal'));
+                modal.show();
+            });
+        });
+
+        // 2. Confirm ปิด PR → AJAX POST
+        document.getElementById('confirmClosePRBtn').addEventListener('click', function() {
+            if (!_closePRId) return;
+
+            var btn      = this;
+            var poNumber = document.getElementById('closePONumber').value.trim();
+            var remark   = document.getElementById('closeRemark').value.trim();
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก…';
+
+            var params = new URLSearchParams({ prId: _closePRId });
+            if (poNumber) params.append('poNumber', poNumber);
+            if (remark)   params.append('remark',   remark);
+
+            fetch('/PORequest/ClosePR?' + params.toString(), { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    bootstrap.Modal.getInstance(document.getElementById('closePRModal')).hide();
+
+                    if (data.success) {
+                        var row = document.querySelector('.pr-row[data-pr-id="' + _closePRId + '"]');
+                        if (row) {
+                            row.style.transition = 'opacity 0.4s';
+                            row.style.opacity = '0';
+                            setTimeout(function() { row.remove(); updateSelection(); }, 420);
+                        }
+                        showClosePRToast('success', '✅ ปิด PR เรียบร้อย — ' + document.getElementById('closePRNumber').textContent);
+                    } else {
+                        showClosePRToast('danger', '❌ ' + (data.message || 'เกิดข้อผิดพลาด'));
+                    }
+                })
+                .catch(function() {
+                    bootstrap.Modal.getInstance(document.getElementById('closePRModal')).hide();
+                    showClosePRToast('danger', '❌ ไม่สามารถเชื่อมต่อได้');
+                })
+                .finally(function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check2 me-1"></i>ยืนยัน ปิด PR';
+                });
+        });
+
+        // 3. Toast helper
+        function showClosePRToast(type, message) {
+            var container = document.getElementById('closePRToastContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'closePRToastContainer';
+                container.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;min-width:300px;';
+                document.body.appendChild(container);
+            }
+            var id   = 'toast_' + Date.now();
+            var html = '<div id="' + id + '" class="toast align-items-center text-bg-' + type + ' border-0 show shadow mb-2" role="alert">'
+                     + '<div class="d-flex"><div class="toast-body fw-semibold">' + message + '</div>'
+                     + '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
+                     + '</div></div>';
+            container.insertAdjacentHTML('beforeend', html);
+            setTimeout(function() { var el = document.getElementById(id); if (el) el.remove(); }, 4500);
+        }
+    </text>
+}
+    </script>
+}

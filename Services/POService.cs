@@ -17,16 +17,19 @@ namespace BTITPORequest.Services
             _logger = logger;
         }
 
-        public async Task<string> GeneratePONumberAsync()
+        public async Task<string> GeneratePONumberAsync(string deptPrefix = "IT")
         {
             using var conn = _db.GetBTITReqConnection();
-            var result = await conn.ExecuteScalarAsync<string>("EXEC ITPO_sp_GeneratePONumber");
-            return result ?? $"BTPO{DateTime.Now:yyMMddHHmm}";
+            var result = await conn.ExecuteScalarAsync<string>(
+                "ITPO_sp_GeneratePONumber",
+                new { DeptPrefix = deptPrefix },
+                commandType: CommandType.StoredProcedure);
+            return result ?? $"{deptPrefix}-{DateTime.Now:yy}-{DateTime.Now:HHmmss}";
         }
 
         public async Task<int> CreatePOAsync(PORequestModel po, List<POLineItemModel> lineItems, string creatorSam,
             string preAssignedIssuerSam = "", string preAssignedApprover1Sam = "", string preAssignedApprover2Sam = "",
-            string requesterDeptCode = "")
+            string requesterDeptCode = "", string deptPrefix = "IT")
         {
             using var conn = _db.GetBTITReqConnection();
             conn.Open();
@@ -34,7 +37,9 @@ namespace BTITPORequest.Services
             try
             {
                 po.PONumber = await conn.ExecuteScalarAsync<string>(
-                    "EXEC ITPO_sp_GeneratePONumber", transaction: tx) ?? "";
+                    "ITPO_sp_GeneratePONumber",
+                    new { DeptPrefix = deptPrefix },
+                    transaction: tx, commandType: CommandType.StoredProcedure) ?? "";
 
                 var poId = await conn.ExecuteScalarAsync<int>(
                     "ITPO_sp_CreatePO",
@@ -51,7 +56,9 @@ namespace BTITPORequest.Services
                         PreAssignedIssuerSam    = preAssignedIssuerSam,
                         PreAssignedApprover1Sam = preAssignedApprover1Sam,
                         PreAssignedApprover2Sam = preAssignedApprover2Sam,
-                        Status = (int)POStatus.Draft
+                        Status = (int)POStatus.Draft,
+                        po.OldPONumber, po.InternalContact,
+                        po.WorkOrderNo, po.NCRNo, po.IRCRNo, po.ChangeNo
                     },
                     transaction: tx, commandType: CommandType.StoredProcedure);
 
@@ -105,7 +112,9 @@ namespace BTITPORequest.Services
                         po.VendorTel, po.VendorFax, po.VendorEmail,
                         po.RefNo, po.Subject, po.Notes,
                         po.Total, po.VatPercent, po.VatAmount,
-                        po.GrandTotal, po.GrandTotalText
+                        po.GrandTotal, po.GrandTotalText,
+                        po.OldPONumber, po.InternalContact,
+                        po.WorkOrderNo, po.NCRNo, po.IRCRNo, po.ChangeNo
                     },
                     transaction: tx, commandType: CommandType.StoredProcedure);
 
@@ -213,6 +222,23 @@ namespace BTITPORequest.Services
             return rows > 0;
         }
 
+        public async Task<bool> CancelPOAsync(int poId, string cancelledBy, string cancelledByName, string? remark = null)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                await conn.ExecuteAsync("ITPO_sp_CancelPO",
+                    new { POId = poId, CancelledBy = cancelledBy, CancelledByName = cancelledByName, Remark = remark },
+                    commandType: CommandType.StoredProcedure);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CancelPOAsync failed poId={poId}", poId);
+                return false;
+            }
+        }
+
         public async Task<DashboardViewModel> GetDashboardDataAsync(
             string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo,
             string? deptCode = null)
@@ -293,6 +319,152 @@ namespace BTITPORequest.Services
             {
                 _logger.LogError(ex, "GetEmailLogsAsync failed");
                 return (0, new List<EmailLogModel>());
+            }
+        }
+
+        // ── PR → PO: ดึง Authorized PRs จาก ITPR_PurchaseRequisitions ────────
+        public async Task<List<PRForPOModel>> GetAuthorizedPRsForPOAsync()
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                var result = await conn.QueryAsync<PRForPOModel>(
+                    "ITPR_sp_GetAuthorizedPRsForPO",
+                    commandType: CommandType.StoredProcedure);
+                return result.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetAuthorizedPRsForPOAsync failed");
+                return new List<PRForPOModel>();
+            }
+        }
+
+        public async Task<(PRForPOModel? PR, List<PRLineItemForPOModel> LineItems)> GetPRDetailForPOAsync(int prId)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+
+                var prList = await conn.QueryAsync<PRForPOModel>(
+                    "ITPR_sp_GetAuthorizedPRsForPO",
+                    commandType: CommandType.StoredProcedure);
+                var pr = prList.FirstOrDefault(p => p.PRId == prId);
+
+                if (pr == null) return (null, new List<PRLineItemForPOModel>());
+
+                var items = await conn.QueryAsync<PRLineItemForPOModel>(
+                    "ITPR_sp_GetPRLineItemsForPO",
+                    new { PRId = prId },
+                    commandType: CommandType.StoredProcedure);
+
+                return (pr, items.ToList());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPRDetailForPOAsync failed prId={prId}", prId);
+                return (null, new List<PRLineItemForPOModel>());
+            }
+        }
+
+        public async Task<(List<PRForPOModel> PRs, List<PRLineItemForPOModel> LineItems)> GetMultiplePRsDetailForPOAsync(IEnumerable<int> prIds)
+        {
+            var idList = prIds.ToList();
+            if (!idList.Any()) return (new(), new());
+
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+
+                // ดึง PR headers ทั้งหมดแล้ว filter
+                var allPRs = await conn.QueryAsync<PRForPOModel>(
+                    "ITPR_sp_GetAuthorizedPRsForPO",
+                    commandType: CommandType.StoredProcedure);
+                var matchedPRs = allPRs.Where(p => idList.Contains(p.PRId)).ToList();
+
+                // ดึง Line Items จากทุก PR พร้อมกัน
+                var allItems = new List<PRLineItemForPOModel>();
+                foreach (var id in idList)
+                {
+                    var items = await conn.QueryAsync<PRLineItemForPOModel>(
+                        "ITPR_sp_GetPRLineItemsForPO",
+                        new { PRId = id },
+                        commandType: CommandType.StoredProcedure);
+                    allItems.AddRange(items);
+                }
+
+                return (matchedPRs, allItems);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetMultiplePRsDetailForPOAsync failed prIds={ids}", string.Join(",", idList));
+                return (new(), new());
+            }
+        }
+
+        public async Task<(bool Success, string PRNumber, string RequesterEmail, string RequesterName)>
+            ClosePRAsync(int prId, string closedBy, string closedByName,
+                         string? poNumber = null, string? remark = null)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                // SP returns 2 result sets: row 0 = PR info+email, row 1 = Success flag
+                using var multi = await conn.QueryMultipleAsync(
+                    "ITPR_sp_ClosePR",
+                    new { PRId = prId, ClosedBy = closedBy, ClosedByName = closedByName,
+                          PONumber = poNumber, Remark = remark },
+                    commandType: CommandType.StoredProcedure);
+
+                var info = (await multi.ReadAsync<dynamic>()).FirstOrDefault();
+                await multi.ReadAsync(); // consume Success result set
+
+                if (info == null) return (false, "", "", "");
+                return (true,
+                    (string)(info.PRNumber ?? ""),
+                    (string)(info.RequesterEmail ?? ""),
+                    (string)(info.RequesterName ?? ""));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ClosePRAsync failed prId={prId}", prId);
+                return (false, "", "", "");
+            }
+        }
+
+        public async Task<List<ClosedPRModel>> GetClosedPRsAsync()
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                var result = await conn.QueryAsync<ClosedPRModel>(
+                    "ITPR_sp_GetClosedPRsForAudit",
+                    commandType: CommandType.StoredProcedure);
+                return result.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetClosedPRsAsync failed");
+                return new List<ClosedPRModel>();
+            }
+        }
+
+        public async Task LinkPRsToPOAsync(IEnumerable<int> prIds, string poNumber)
+        {
+            var idList = prIds?.ToList();
+            if (idList == null || idList.Count == 0 || string.IsNullOrEmpty(poNumber)) return;
+
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                await conn.ExecuteAsync(
+                    "ITPR_sp_LinkPRsToPO",
+                    new { PRIds = string.Join(",", idList), PONumber = poNumber },
+                    commandType: CommandType.StoredProcedure);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "LinkPRsToPOAsync failed poNumber={poNumber}", poNumber);
             }
         }
     }
