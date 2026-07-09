@@ -96,6 +96,7 @@ else
                                 <th style="width:110px;">Dept</th>
                                 <th style="width:110px;" class="text-end">Amount (THB)</th>
                                 <th style="width:100px;">Authorized</th>
+                                <th style="width:52px;" class="text-center"></th>
                                 @if (isAdminView)
                                 {
                                     <th style="width:90px;" class="text-center text-danger">
@@ -160,6 +161,21 @@ else
                                     </td>
                                     <td class="text-muted" style="font-size:.78rem;">
                                         @pr.UpdatedAt.ToString("dd/MM/yy HH:mm")
+                                    </td>
+                                    <td class="text-center" onclick="event.stopPropagation()">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-info btn-send-pr-email"
+                                                title="Send Email to Requester"
+                                                data-pr-id="@pr.PRId"
+                                                data-pr-number="@pr.PRNumber"
+                                                data-pr-subject="@pr.ReasonToOrder"
+                                                data-pr-vendor="@pr.SupplierCompany"
+                                                data-pr-total="@pr.GrandTotal.ToString("N2")"
+                                                data-pr-dept="@pr.LinkedDeptName"
+                                                data-pr-requester="@pr.RequesterName"
+                                                data-pr-sam="@pr.RequesterSam">
+                                            <i class="bi bi-envelope"></i>
+                                        </button>
                                     </td>
                                     @if (isAdminView)
                                     {
@@ -294,6 +310,93 @@ else
 </div>@* end tab-pane #tab-closed *@
 
 </div>@* end tab-content *@
+
+@* ── Modal: Send Email to PR Requester ───────────────────── *@
+<div class="modal fade" id="sendPREmailModal" tabindex="-1" aria-labelledby="sendPREmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="sendPREmailModalLabel">
+                    <i class="bi bi-envelope-fill text-info me-2"></i>Send PR Notification
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <!-- PR Summary -->
+                <div class="rounded border bg-light p-3 mb-3" style="font-size:.85rem;">
+                    <div class="row g-1">
+                        <div class="col-sm-3 text-muted">PR Number</div>
+                        <div class="col-sm-9 fw-semibold" id="pr-em-number"></div>
+                        <div class="col-sm-3 text-muted">Supplier</div>
+                        <div class="col-sm-9" id="pr-em-vendor"></div>
+                        <div class="col-sm-3 text-muted">Subject</div>
+                        <div class="col-sm-9" id="pr-em-subject"></div>
+                        <div class="col-sm-3 text-muted">Grand Total</div>
+                        <div class="col-sm-9 fw-semibold" id="pr-em-total"></div>
+                        <div class="col-sm-3 text-muted">แผนก</div>
+                        <div class="col-sm-9" id="pr-em-dept"></div>
+                        <div class="col-sm-3 text-muted">Requester</div>
+                        <div class="col-sm-9" id="pr-em-requester"></div>
+                    </div>
+                </div>
+
+                <!-- Recipient -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="bi bi-person-fill me-1 text-primary"></i>Requester Email
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="text" id="pr-em-requester-email" class="form-control"
+                               placeholder="Loading…" readonly />
+                        <span class="input-group-text" id="pr-em-email-spinner" style="display:none;">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </span>
+                    </div>
+                    <div class="form-text">Email ของ Requester — ดึงจาก HR อัตโนมัติ</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="bi bi-people-fill me-1 text-secondary"></i>Email เพิ่มเติม
+                        <span class="fw-normal text-muted">(ไม่จำเป็น)</span>
+                    </label>
+                    <input type="text" id="pr-em-extra-emails" class="form-control"
+                           placeholder="email1@company.com;email2@company.com" />
+                    <div class="form-text">คั่นหลาย email ด้วย <code>;</code></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="bi bi-chat-left-text-fill me-1 text-warning"></i>Message
+                        <span class="fw-normal text-muted">(ไม่จำเป็น)</span>
+                    </label>
+                    <textarea id="pr-em-message" class="form-control" rows="3"
+                              placeholder="ข้อความถึง Requester เช่น สินค้าพร้อมรับแล้ว กรุณาติดต่อ IT..."></textarea>
+                    <div class="form-text">จะแสดงในกล่องสีเหลืองในอีเมล</div>
+                </div>
+
+                <div id="pr-em-alert" class="alert d-none mb-0" role="alert"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" id="pr-em-send-btn" class="btn btn-info text-white">
+                    <i class="bi bi-send-fill me-1"></i>Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast (PR email) -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+    <div id="prEmailToast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="prEmailToastBody"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
 
 @* ── Modal: ยืนยันปิด PR (Admin only) ─────────────────────── *@
 @if (isAdminView)
@@ -433,6 +536,101 @@ else
                 row.style.display = (diffDept || !matchSearch) ? 'none' : '';
             });
         });
+
+        // ── Send Email to PR Requester ────────────────────────
+        (function () {
+            const modal   = new bootstrap.Modal(document.getElementById('sendPREmailModal'));
+            const toast   = new bootstrap.Toast(document.getElementById('prEmailToast'));
+            const sendBtn = document.getElementById('pr-em-send-btn');
+            let currentPrId = null;
+
+            document.querySelectorAll('.btn-send-pr-email').forEach(function(btn) {
+                btn.addEventListener('click', async function () {
+                    const d = this.dataset;
+                    currentPrId = d.prId;
+
+                    document.getElementById('pr-em-number').textContent    = d.prNumber;
+                    document.getElementById('pr-em-vendor').textContent     = d.prVendor || '—';
+                    document.getElementById('pr-em-subject').textContent    = d.prSubject;
+                    document.getElementById('pr-em-total').textContent      = d.prTotal + ' THB';
+                    document.getElementById('pr-em-dept').textContent       = d.prDept || '—';
+                    document.getElementById('pr-em-requester').textContent  = d.prRequester;
+
+                    document.getElementById('pr-em-requester-email').value  = '';
+                    document.getElementById('pr-em-extra-emails').value     = '';
+                    document.getElementById('pr-em-message').value          = '';
+                    hidePRAlert();
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+
+                    modal.show();
+
+                    const spinner = document.getElementById('pr-em-email-spinner');
+                    spinner.style.display = 'flex';
+                    try {
+                        const res = await fetch('/PORequest/GetRequesterEmail?samAcc=' + encodeURIComponent(d.prSam));
+                        const data = await res.json();
+                        document.getElementById('pr-em-requester-email').value = data.email || '';
+                    } catch {
+                        document.getElementById('pr-em-requester-email').value = '';
+                    } finally {
+                        spinner.style.display = 'none';
+                    }
+                });
+            });
+
+            sendBtn.addEventListener('click', async function () {
+                hidePRAlert();
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+
+                const extraEmails = document.getElementById('pr-em-extra-emails').value.trim();
+                const message     = document.getElementById('pr-em-message').value.trim();
+                try {
+                    const res = await fetch('/PORequest/SendPRQuickEmail', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prId: parseInt(currentPrId), extraEmails: extraEmails, message: message })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        modal.hide();
+                        showPRToast(data.message, 'success');
+                    } else {
+                        showPRAlert(data.message || 'เกิดข้อผิดพลาด', 'danger');
+                        sendBtn.disabled = false;
+                        sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+                    }
+                } catch {
+                    showPRAlert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'danger');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+                }
+            });
+
+            document.getElementById('sendPREmailModal').addEventListener('hidden.bs.modal', function () {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+                hidePRAlert();
+            });
+
+            function showPRAlert(msg, type) {
+                const el = document.getElementById('pr-em-alert');
+                el.className = 'alert alert-' + type + ' mb-0';
+                el.textContent = msg;
+            }
+            function hidePRAlert() {
+                const el = document.getElementById('pr-em-alert');
+                el.className = 'alert d-none mb-0';
+                el.textContent = '';
+            }
+            function showPRToast(msg, type) {
+                const toastEl = document.getElementById('prEmailToast');
+                toastEl.className = 'toast align-items-center border-0 text-bg-' + type;
+                document.getElementById('prEmailToastBody').textContent = msg;
+                toast.show();
+            }
+        })();
 
 @if (isAdminView)
 {

@@ -689,7 +689,7 @@ public class LetterheadPageEvent : IEventHandler
                   .SetFontAndSize(fontR, 6.5f)
                   .SetFillColor(darkGray)
                   .MoveText(20f, 35f)
-                  .ShowText("บริษัท เบอร์นิน่า (ประเทศไทย) จำกัด  เลขที่ 79/1  หมู่ 4  ต.บ้านกลาง  อ.เมือง  จ.ลำพูน  51000")
+                  .ShowText("บริษัท เบอร์นิน่า (ไทยแลนด์) จำกัด  เลขที่ 79/1  หมู่ 4  ต.บ้านกลาง  อ.เมือง  จ.ลำพูน  51000")
                   .EndText();
 
             // Email / website

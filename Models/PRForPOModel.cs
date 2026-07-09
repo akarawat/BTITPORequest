@@ -77,4 +77,14 @@ namespace BTITPORequest.Models
         public List<PRForPOModel>  PRList       { get; set; } = new();
         public List<ClosedPRModel> ClosedPRList { get; set; } = new();
     }
+
+    // ── Quick Email Notification Request (PR) ─────────────────
+    public class SendPRQuickEmailRequest
+    {
+        public int    PrId        { get; set; }
+        /// <summary>Email เพิ่มเติม คั่นด้วย ; เช่น "a@x.com;b@x.com"</summary>
+        public string ExtraEmails { get; set; } = string.Empty;
+        /// <summary>ข้อความ Comment เพิ่มเติมสำหรับ Requester</summary>
+        public string Message     { get; set; } = string.Empty;
+    }
 }

@@ -207,4 +207,14 @@ namespace BTITPORequest.Models
         public string? Remark { get; set; }
         public int ApprovalLevel { get; set; }
     }
+
+    // ── Quick Email Notification Request ─────────────────────
+    public class SendQuickEmailRequest
+    {
+        public int PoId { get; set; }
+        /// <summary>
+        /// Email เพิ่มเติมนอกจาก Requester คั่นด้วย ; เช่น "a@x.com;b@x.com"
+        /// </summary>
+        public string ExtraEmails { get; set; } = string.Empty;
+    }
 }

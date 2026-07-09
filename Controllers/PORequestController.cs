@@ -835,6 +835,344 @@ namespace BTITPORequest.Controllers
             return string.Empty;
         }
 
+        // ── GET Requester Email (for modal pre-fill) ─────────
+        [HttpGet]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> GetRequesterEmail(string samAcc)
+        {
+            var email = await GetEmailBysamAccAsync(samAcc ?? string.Empty);
+            return Json(new { email });
+        }
+
+        // ── SEND QUICK EMAIL (Admin / PO owner) ───────────────
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> SendQuickEmail([FromBody] SendQuickEmailRequest req)
+        {
+            var user = CurrentUser;
+            var po   = await _poService.GetPOByIdAsync(req.PoId);
+            if (po == null)
+                return Json(new { success = false, message = "ไม่พบ PO" });
+
+            bool isAdmin = user.Role == "Admin";
+            bool isOwner = po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
+            if (!isAdmin && !isOwner)
+                return Json(new { success = false, message = "ไม่มีสิทธิ์ส่ง Email" });
+
+            // ── Build recipient list ──────────────────────────
+            var requesterEmail = await GetEmailBysamAccAsync(po.RequesterSam);
+            var allEmails = new List<string>();
+            if (!string.IsNullOrWhiteSpace(requesterEmail))
+                allEmails.Add(requesterEmail.Trim());
+
+            if (!string.IsNullOrWhiteSpace(req.ExtraEmails))
+            {
+                var extras = req.ExtraEmails
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(e => e.Trim())
+                    .Where(e => e.Contains('@') && e.Length > 5);
+                allEmails.AddRange(extras);
+            }
+
+            allEmails = allEmails.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (!allEmails.Any())
+                return Json(new { success = false, message = "ไม่พบ Email ปลายทาง" });
+
+            var toList = string.Join(";", allEmails);
+            var poUrl  = $"{SiteUrl}/PORequest/Detail/{po.POId}";
+            var subject = $"[IT PO Request] แจ้ง PO {po.PONumber} — {po.VendorCompany}";
+            var body    = BuildQuickEmailBody(po, user.FullName, poUrl);
+
+            var sent = await _mail.SendAsync(toList, subject, body,
+                mailType: "QuickNotify", poNumber: po.PONumber, poId: po.POId,
+                createdBy: user.SamAcc);
+
+            return Json(new
+            {
+                success = sent,
+                message = sent
+                    ? $"ส่ง Email ไปที่ {toList} เรียบร้อยแล้ว"
+                    : "ส่ง Email ไม่สำเร็จ — ตรวจสอบ Email Log"
+            });
+        }
+
+        // ── SEND PR QUICK EMAIL ───────────────────────────────
+        [HttpPost]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> SendPRQuickEmail([FromBody] SendPRQuickEmailRequest req)
+        {
+            var user = CurrentUser;
+            var (pr, _) = await _poService.GetPRDetailForPOAsync(req.PrId);
+            if (pr == null)
+                return Json(new { success = false, message = "ไม่พบ PR" });
+
+            var requesterEmail = await GetEmailBysamAccAsync(pr.RequesterSam);
+            var allEmails = new List<string>();
+            if (!string.IsNullOrWhiteSpace(requesterEmail))
+                allEmails.Add(requesterEmail.Trim());
+
+            if (!string.IsNullOrWhiteSpace(req.ExtraEmails))
+            {
+                var extras = req.ExtraEmails
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(e => e.Trim())
+                    .Where(e => e.Contains('@') && e.Length > 5);
+                allEmails.AddRange(extras);
+            }
+
+            allEmails = allEmails.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (!allEmails.Any())
+                return Json(new { success = false, message = "ไม่พบ Email ปลายทาง" });
+
+            var toList  = string.Join(";", allEmails);
+            var subject = $"[IT PR Request] แจ้งสถานะ PR {pr.PRNumber}";
+            var body    = BuildPRQuickEmailBody(pr, user.FullName, req.Message);
+
+            var sent = await _mail.SendAsync(toList, subject, body,
+                mailType: "PRQuickNotify", poNumber: pr.PRNumber,
+                createdBy: user.SamAcc);
+
+            return Json(new
+            {
+                success = sent,
+                message = sent
+                    ? $"ส่ง Email ไปที่ {toList} เรียบร้อยแล้ว"
+                    : "ส่ง Email ไม่สำเร็จ — ตรวจสอบ Email Log"
+            });
+        }
+
+        // ── PRIVATE: PR Quick Email HTML Body ────────────────
+        private static string BuildPRQuickEmailBody(PRForPOModel pr, string senderName,
+            string message = "")
+        {
+            var vendor = string.IsNullOrWhiteSpace(pr.SupplierCompany) ? "—" : pr.SupplierCompany;
+            return $"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"></head>
+            <body style="margin:0;padding:0;background:#f4f6f9;font-family:Calibri,Arial,sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+              <tr><td align="center">
+                <table width="600" cellpadding="0" cellspacing="0"
+                       style="background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background:#1A5C3A;padding:24px 32px;">
+                      <p style="margin:0;color:#A8D5B5;font-size:12px;letter-spacing:2px;text-transform:uppercase;">
+                        BERNINA THAILAND — IT DEPARTMENT
+                      </p>
+                      <p style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">
+                        Ready to pickup
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Body -->
+                  <tr>
+                    <td style="padding:32px;">
+                      <p style="margin:0 0 20px;font-size:15px;color:#333;">
+                        แจ้งสถานะ Purchase Requisition สำหรับการอ้างอิง
+                      </p>
+
+                      <!-- PR Info Box -->
+                      <table width="100%" cellpadding="0" cellspacing="0"
+                             style="background:#F8F9FA;border-radius:6px;border:1px solid #E9ECEF;margin-bottom:24px;">
+                        <tr>
+                          <td style="padding:20px;">
+                            <table width="100%" cellpadding="6" cellspacing="0">
+                              <tr>
+                                <td style="width:140px;font-size:13px;color:#6c757d;font-weight:600;">PR Number</td>
+                                <td style="font-size:15px;font-weight:700;color:#1A5C3A;">{pr.PRNumber}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">วันที่</td>
+                                <td style="font-size:13px;color:#333;">{pr.CreatedAt:dd/MM/yyyy}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Supplier</td>
+                                <td style="font-size:13px;color:#333;">{vendor}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Subject</td>
+                                <td style="font-size:13px;color:#333;">{pr.ReasonToOrder}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Grand Total</td>
+                                <td style="font-size:15px;font-weight:700;color:#333;">
+                                  {pr.GrandTotal:N2} THB
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">แผนก</td>
+                                <td style="font-size:13px;color:#333;">{pr.LinkedDeptName}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Requester</td>
+                                <td style="font-size:13px;color:#333;">{pr.RequesterName}</td>
+                              </tr>
+                              {(!string.IsNullOrWhiteSpace(pr.LinkedPONumber) ?
+                              $"""
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Linked PO</td>
+                                <td style="font-size:13px;font-weight:700;color:#0d6efd;">{pr.LinkedPONumber}</td>
+                              </tr>
+                              """ : "")}
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      {(!string.IsNullOrWhiteSpace(message) ?
+                      $"""
+                      <!-- Message Box -->
+                      <table width="100%" cellpadding="0" cellspacing="0"
+                             style="background:#FFF8E1;border-radius:6px;border:1px solid #FFE082;margin-bottom:24px;">
+                        <tr>
+                          <td style="padding:16px 20px;">
+                            <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#F57F17;
+                               text-transform:uppercase;letter-spacing:1px;">
+                              Message from {senderName}
+                            </p>
+                            <p style="margin:0;font-size:14px;color:#333;white-space:pre-wrap;">{System.Web.HttpUtility.HtmlEncode(message)}</p>
+                          </td>
+                        </tr>
+                      </table>
+                      """ : "")}
+
+                      <p style="margin:0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">
+                        Email นี้ส่งโดย <strong>{senderName}</strong> ผ่านระบบ IT PO Request<br>
+                        หากมีข้อสงสัยกรุณาติดต่อฝ่าย IT โดยตรง
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td></tr>
+            </table>
+            </body>
+            </html>
+            """;
+        }
+
+        // ── PRIVATE: Quick Email HTML Body ───────────────────
+        private static string BuildQuickEmailBody(PORequestModel po, string senderName, string poUrl)
+        {
+            var statusColor = po.Status switch
+            {
+                POStatus.Draft      => "#6c757d",
+                POStatus.Requested  => "#0d6efd",
+                POStatus.Issued     => "#0dcaf0",
+                POStatus.Authorized => "#ffc107",
+                POStatus.Completed  => "#198754",
+                _                   => "#dc3545"
+            };
+
+            return $"""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"></head>
+            <body style="margin:0;padding:0;background:#f4f6f9;font-family:Calibri,Arial,sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 0;">
+              <tr><td align="center">
+                <table width="600" cellpadding="0" cellspacing="0"
+                       style="background:#ffffff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background:#1A3A5C;padding:24px 32px;">
+                      <p style="margin:0;color:#CADCFC;font-size:12px;letter-spacing:2px;text-transform:uppercase;">
+                        BERNINA THAILAND — IT DEPARTMENT
+                      </p>
+                      <p style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">
+                        Purchase Order Notification
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Body -->
+                  <tr>
+                    <td style="padding:32px;">
+                      <p style="margin:0 0 20px;font-size:15px;color:#333;">
+                        แจ้งสถานะ Purchase Order สำหรับการอ้างอิง
+                      </p>
+
+                      <!-- PO Info Box -->
+                      <table width="100%" cellpadding="0" cellspacing="0"
+                             style="background:#F8F9FA;border-radius:6px;border:1px solid #E9ECEF;margin-bottom:24px;">
+                        <tr>
+                          <td style="padding:20px;">
+                            <table width="100%" cellpadding="6" cellspacing="0">
+                              <tr>
+                                <td style="width:140px;font-size:13px;color:#6c757d;font-weight:600;">PO Number</td>
+                                <td style="font-size:15px;font-weight:700;color:#1A3A5C;">{po.PONumber}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">วันที่</td>
+                                <td style="font-size:13px;color:#333;">{po.PODate:dd/MM/yyyy}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Vendor</td>
+                                <td style="font-size:13px;color:#333;">{po.VendorCompany}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Subject</td>
+                                <td style="font-size:13px;color:#333;">{po.Subject}</td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Grand Total</td>
+                                <td style="font-size:15px;font-weight:700;color:#333;">
+                                  {po.GrandTotal.ToString("N2")} THB
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Status</td>
+                                <td>
+                                  <span style="display:inline-block;background:{statusColor};color:#fff;
+                                    border-radius:4px;padding:2px 10px;font-size:12px;font-weight:600;">
+                                    {po.StatusLabel}
+                                  </span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="font-size:13px;color:#6c757d;font-weight:600;">Requester</td>
+                                <td style="font-size:13px;color:#333;">{po.RequesterName}</td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <!-- CTA Button -->
+                      <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+                        <tr>
+                          <td align="center" style="background:#1A3A5C;border-radius:6px;padding:12px 28px;">
+                            <a href="{poUrl}"
+                               style="color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">
+                              ดู PO ในระบบ →
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <p style="margin:0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">
+                        Email นี้ส่งโดย <strong>{senderName}</strong> ผ่านระบบ IT PO Request<br>
+                        หากมีข้อสงสัยกรุณาติดต่อฝ่าย IT โดยตรง
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td></tr>
+            </table>
+            </body>
+            </html>
+            """;
+        }
+
+        private string SiteUrl =>
+            _config["AppSettings:MainAppBaseUrl"] ?? "https://it_porequest.berninathailand.com";
+
         // ── PRIVATE: Recalc Totals ────────────────────────────
         private static void RecalcTotals(PORequestModel po, List<POLineItemModel> items)
         {

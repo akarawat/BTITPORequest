@@ -60,6 +60,84 @@
     </div>
 </div>
 
+<!-- ── Send Email Modal ────────────────────────────────────── -->
+<div class="modal fade" id="sendEmailModal" tabindex="-1" aria-labelledby="sendEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="sendEmailModalLabel">
+                    <i class="bi bi-envelope-fill text-info me-2"></i>Send PO Notification
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <!-- PO Summary -->
+                <div class="rounded border bg-light p-3 mb-3" style="font-size:.85rem;">
+                    <div class="row g-1">
+                        <div class="col-sm-3 text-muted">PO Number</div>
+                        <div class="col-sm-9 fw-semibold" id="em-po-number"></div>
+                        <div class="col-sm-3 text-muted">Vendor</div>
+                        <div class="col-sm-9" id="em-vendor"></div>
+                        <div class="col-sm-3 text-muted">Subject</div>
+                        <div class="col-sm-9" id="em-subject"></div>
+                        <div class="col-sm-3 text-muted">Grand Total</div>
+                        <div class="col-sm-9 fw-semibold" id="em-total"></div>
+                        <div class="col-sm-3 text-muted">Status</div>
+                        <div class="col-sm-9" id="em-status"></div>
+                        <div class="col-sm-3 text-muted">Requester</div>
+                        <div class="col-sm-9" id="em-requester"></div>
+                    </div>
+                </div>
+
+                <!-- Recipient -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="bi bi-person-fill me-1 text-primary"></i>Requester Email
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="text" id="em-requester-email" class="form-control"
+                               placeholder="Loading…" readonly />
+                        <span class="input-group-text" id="em-email-spinner" style="display:none;">
+                            <span class="spinner-border spinner-border-sm"></span>
+                        </span>
+                    </div>
+                    <div class="form-text">Email ของ Requester — ดึงจาก HR อัตโนมัติ</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold mb-1">
+                        <i class="bi bi-people-fill me-1 text-secondary"></i>Email เพิ่มเติม
+                        <span class="fw-normal text-muted">(ไม่จำเป็น)</span>
+                    </label>
+                    <input type="text" id="em-extra-emails" class="form-control"
+                           placeholder="email1@company.com;email2@company.com" />
+                    <div class="form-text">คั่นหลาย email ด้วย <code>;</code></div>
+                </div>
+
+                <!-- Alert area -->
+                <div id="em-alert" class="alert d-none mb-0" role="alert"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" id="em-send-btn" class="btn btn-info text-white">
+                    <i class="bi bi-send-fill me-1"></i>Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+    <div id="emailToast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="emailToastBody"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
 <!-- Table -->
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
@@ -106,6 +184,21 @@
                                    class="btn btn-sm btn-outline-secondary" title="View">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                @if (Model.IsAdmin || po.RequesterSam == Model.CurrentUserSam)
+                                {// พี่แหวนขอปิดก่อน
+                                    @* <button class="btn btn-sm btn-outline-info ms-1 btn-send-email"
+                                            title="Send Email to Requester"
+                                            data-po-id="@po.POId"
+                                            data-po-number="@po.PONumber"
+                                            data-po-vendor="@po.VendorCompany"
+                                            data-po-subject="@po.Subject"
+                                            data-po-total="@po.GrandTotal.ToString("N2")"
+                                            data-po-status="@po.StatusLabel"
+                                            data-po-requester="@po.RequesterName"
+                                            data-po-sam="@po.RequesterSam">
+                                        <i class="bi bi-envelope"></i>
+                                    </button> *@
+                                }
                                 @if (po.Status == POStatus.Draft && po.RequesterSam == Model.CurrentUserSam)
                                 {
                                     <a asp-action="Edit" asp-route-id="@po.POId"
@@ -128,3 +221,106 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    const modal   = new bootstrap.Modal(document.getElementById('sendEmailModal'));
+    const toast   = new bootstrap.Toast(document.getElementById('emailToast'));
+    const sendBtn = document.getElementById('em-send-btn');
+    let currentPoId = null;
+
+    // ── Open modal ────────────────────────────────────────────
+    document.querySelectorAll('.btn-send-email').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const d = this.dataset;
+            currentPoId = d.poId;
+
+            // Fill summary
+            document.getElementById('em-po-number').textContent  = d.poNumber;
+            document.getElementById('em-vendor').textContent     = d.poVendor;
+            document.getElementById('em-subject').textContent    = d.poSubject;
+            document.getElementById('em-total').textContent      = d.poTotal + ' THB';
+            document.getElementById('em-status').textContent     = d.poStatus;
+            document.getElementById('em-requester').textContent  = d.poRequester;
+
+            // Reset fields
+            document.getElementById('em-requester-email').value  = '';
+            document.getElementById('em-extra-emails').value     = '';
+            hideAlert();
+            sendBtn.disabled = false;
+
+            modal.show();
+
+            // Fetch requester email
+            const spinner = document.getElementById('em-email-spinner');
+            spinner.style.display = 'flex';
+            try {
+                const res = await fetch(`/PORequest/GetRequesterEmail?samAcc=${encodeURIComponent(d.poSam)}`);
+                const data = await res.json();
+                document.getElementById('em-requester-email').value = data.email || '';
+            } catch {
+                document.getElementById('em-requester-email').value = '';
+            } finally {
+                spinner.style.display = 'none';
+            }
+        });
+    });
+
+    // ── Send ──────────────────────────────────────────────────
+    sendBtn.addEventListener('click', async function () {
+        hideAlert();
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending…';
+
+        const extraEmails = document.getElementById('em-extra-emails').value.trim();
+
+        try {
+            const res = await fetch('/PORequest/SendQuickEmail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ poId: parseInt(currentPoId), extraEmails: extraEmails })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                modal.hide();
+                showToast(data.message, 'success');
+            } else {
+                showAlert(data.message || 'เกิดข้อผิดพลาด', 'danger');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+            }
+        } catch (err) {
+            showAlert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'danger');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+        }
+    });
+
+    // Reset button when modal closes
+    document.getElementById('sendEmailModal').addEventListener('hidden.bs.modal', function () {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Send Email';
+        hideAlert();
+    });
+
+    function showAlert(msg, type) {
+        const el = document.getElementById('em-alert');
+        el.className = `alert alert-${type} mb-0`;
+        el.textContent = msg;
+    }
+    function hideAlert() {
+        const el = document.getElementById('em-alert');
+        el.className = 'alert d-none mb-0';
+        el.textContent = '';
+    }
+    function showToast(msg, type) {
+        const toastEl = document.getElementById('emailToast');
+        toastEl.className = `toast align-items-center border-0 text-bg-${type}`;
+        document.getElementById('emailToastBody').textContent = msg;
+        toast.show();
+    }
+})();
+</script>
+}
