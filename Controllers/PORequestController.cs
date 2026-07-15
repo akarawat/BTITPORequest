@@ -770,19 +770,18 @@ namespace BTITPORequest.Controllers
             var po = await _poService.GetPOByIdAsync(poId);
             if (po == null) return;
 
-            // ── แจ้ง Requester (ตัวเอง) ว่า PO ถูก Submit แล้ว ─
             var requesterEmail = await GetEmailBysamAccAsync(user.SamAcc);
             var issuerName = string.Empty;
+
             if (!string.IsNullOrEmpty(po.PreAssignedIssuerSam))
             {
-                var issuers = await _poService.GetUsersByRoleAsync("Issuer");
-                var issuer = issuers.FirstOrDefault(i =>
-                    i.SamAcc.Equals(po.PreAssignedIssuerSam, StringComparison.OrdinalIgnoreCase));
-                issuerName = issuer?.FullName ?? po.PreAssignedIssuerSam;
+                // Free assign: ดึง email ตรงจาก HR DB (ไม่เช็ค UserRoles เพราะ Issuer อาจไม่มี role)
+                var issuerEmail = await GetEmailBysamAccAsync(po.PreAssignedIssuerSam);
+                var issuerHR    = await _authService.GetHRUserAsync(po.PreAssignedIssuerSam);
+                issuerName = issuerHR?.fName ?? po.PreAssignedIssuerSam;
 
-                // ── แจ้ง Issuer ให้ Issue ──────────────────────
-                if (issuer != null && !string.IsNullOrEmpty(issuer.Email))
-                    _ = _mail.NotifyIssuerAsync(issuer.Email, po.PONumber, po.VendorCompany,
+                if (!string.IsNullOrEmpty(issuerEmail))
+                    _ = _mail.NotifyIssuerAsync(issuerEmail, po.PONumber, po.VendorCompany,
                             po.Subject, user.FullName, user.Department,
                             po.GrandTotal.ToString("N2"), poId);
             }

@@ -87,6 +87,13 @@
                     </a>
                 </li>
             }
+            <li class="nav-section-label">ข้อมูล</li>
+            <li class="nav-item">
+                <a class="bt-nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Info" ? "active" : "")"
+                   asp-controller="Info" asp-action="WorkInstruction">
+                    <i class="bi bi-book"></i> คู่มือ
+                </a>
+            </li>
         </ul>
 
         <div class="bt-sidebar-footer px-3 py-2">

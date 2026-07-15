@@ -96,27 +96,43 @@
     </div>
 </div>
 
-<!-- Charts Row -->
-<div class="row g-3 mb-4">
-    <!-- Daily Amount Chart -->
-    <div class="col-lg-8">
-        <div class="card h-100 border-0 shadow-sm">
+<!-- Charts: Daily full-width (centered) -->
+<div class="row g-3 mb-3">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 pb-0">
                 <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Daily PO Amount (Baht)</h6>
             </div>
             <div class="card-body">
-                <canvas id="dailyChart" height="120"></canvas>
+                <canvas id="dailyChart" height="80"></canvas>
             </div>
         </div>
     </div>
-    <!-- Status Doughnut -->
-    <div class="col-lg-4">
+</div>
+
+<!-- Charts: Monthly Count + Monthly Amount side-by-side -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 pb-0">
-                <h6 class="fw-semibold mb-0"><i class="bi bi-pie-chart me-2 text-primary"></i>Status Breakdown</h6>
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Monthly PO Count (@Model.ChartYear)
+                </h6>
             </div>
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
-                <canvas id="statusChart" width="200" height="200"></canvas>
+            <div class="card-body pt-2">
+                <canvas id="monthlyCountChart" height="110"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-bar-chart-steps me-2 text-success"></i>Monthly PO Amount — Baht (@Model.ChartYear)
+                </h6>
+            </div>
+            <div class="card-body pt-2">
+                <canvas id="monthlyAmountChart" height="110"></canvas>
             </div>
         </div>
     </div>
@@ -227,8 +243,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
     <script>
-        var dailyData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.DailyAmounts));
-        var statusData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.StatusSummary));
-        initDashboardCharts(dailyData, statusData);
+        var dailyData   = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.DailyAmounts));
+        var monthlyData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.MonthlyBreakdown));
+        var chartYear   = @Model.ChartYear;
+        initDashboardCharts(dailyData, monthlyData, chartYear);
     </script>
 }

@@ -260,6 +260,7 @@ namespace BTITPORequest.Services
             var statusSummary = (await multi.ReadAsync<StatusSummaryData>()).ToList();
             var recentPOs = (await multi.ReadAsync<PORequestModel>()).ToList();
             var pendingActions = (await multi.ReadAsync<PORequestModel>()).ToList();
+            var monthlyBreakdown = (await multi.ReadAsync<MonthlyBreakdownData>()).ToList();
 
             return new DashboardViewModel
             {
@@ -272,6 +273,8 @@ namespace BTITPORequest.Services
                 DraftCount = (int)(summary?.DraftCount ?? 0),
                 DailyAmounts = dailyAmounts,
                 StatusSummary = statusSummary,
+                MonthlyBreakdown = monthlyBreakdown,
+                ChartYear = dateFrom.Year,
                 RecentPOs = recentPOs,
                 PendingMyAction = pendingActions
             };

@@ -4,8 +4,8 @@ wwwroot\img\letterhead_bottom.png
 wwwroot\img\letterhead_top.png
 wwwroot\img\swiss_heritage_logo.png
 wwwroot\js\admin-roles.js
-wwwroot\js\dashboard.js
 wwwroot\js\po-form.js
 wwwroot\js\site.js
 wwwroot\js\vendor-autocomplete.js
 wwwroot\uploads\po_23\e94dc17160924d8ca09214c6b1e5e4ac.pdf
+wwwroot\js\dashboard.js

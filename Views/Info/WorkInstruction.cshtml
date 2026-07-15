@@ -1,0 +1,366 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Instruction — IT PO Request System | BERNINA Thailand</title>
+<style>
+
+  @@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Sarabun',sans-serif; background:#f0f0f0; display:flex; flex-direction:column; align-items:center; padding:0; min-height:100vh; }
+  .wi-topbar { width:100%; background:#1e3a8a; color:#fff; padding:10px 20px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+  .wi-topbar a { color:rgba(255,255,255,.8); text-decoration:none; font-size:.85rem; display:flex; align-items:center; gap:5px; }
+  .wi-topbar a:hover { color:#fff; }
+  .wi-topbar .wi-title { font-size:.9rem; font-weight:700; color:#fff; margin-left:8px; }
+  .wi-topbar .wi-actions { margin-left:auto; display:flex; gap:8px; }
+  .wi-btn { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); color:#fff; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:.82rem; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+  .wi-btn:hover { background:rgba(255,255,255,.25); color:#fff; }
+  .wi-wrap { padding:20px; width:100%; display:flex; justify-content:center; }
+  .page { width:794px; min-height:1123px; background:#fff; padding:32px 36px 28px; position:relative; box-shadow:0 4px 24px rgba(0,0,0,.15); }
+  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #1e40af; padding-bottom:14px; margin-bottom:16px; }
+  .header-left img { height:36px; }
+  .header-right { text-align:right; }
+  .header-right .sys-title { font-size:17px; font-weight:800; color:#1a1a1a; line-height:1.2; }
+  .header-right .sys-sub { font-size:11px; color:#666; margin-top:2px; }
+  .doc-badge { display:inline-block; background:#1e40af; color:#fff; font-size:9px; font-weight:700; padding:2px 8px; border-radius:3px; letter-spacing:.5px; margin-top:4px; }
+  .intro { background:linear-gradient(135deg,#eff6ff 0%,#fff 100%); border:1px solid #bfdbfe; border-left:4px solid #1e40af; border-radius:6px; padding:10px 14px; margin-bottom:18px; font-size:11.5px; color:#444; display:flex; align-items:center; gap:10px; }
+  .intro .icon { font-size:22px; }
+  .intro strong { color:#1e40af; }
+  .roles { display:flex; gap:8px; margin-bottom:16px; }
+  .role-col { flex:1; border-radius:8px; overflow:hidden; border:1px solid #e5e7eb; }
+  .role-head { padding:9px 10px 7px; color:#fff; font-weight:700; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .role-head .role-icon { font-size:16px; }
+  .role-head .role-sub { font-size:9.5px; font-weight:400; opacity:.85; }
+  .role-steps { padding:8px 9px 7px; background:#fff; }
+  .step { display:flex; align-items:flex-start; gap:7px; margin-bottom:7px; }
+  .step:last-child { margin-bottom:0; }
+  .step-num { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#fff; flex-shrink:0; margin-top:1px; }
+  .step-text { font-size:10.5px; color:#333; line-height:1.4; }
+  .step-text strong { font-weight:700; color:#111; }
+  .step-text small { font-size:9.5px; color:#777; display:block; margin-top:1px; }
+  .step-divider { border:none; border-top:1px dashed #e5e7eb; margin:5px 0; }
+  .bottom-row { display:flex; gap:10px; margin-bottom:16px; }
+  .status-box { flex:1.4; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; }
+  .box-title { font-size:10px; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; display:flex; align-items:center; gap:5px; }
+  .status-grid { display:flex; flex-wrap:wrap; gap:6px; }
+  .sbadge { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#333; }
+  .sbadge span { display:inline-block; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:600; }
+  .s1{background:#fef9c3;color:#92400e;} .s2{background:#dbeafe;color:#1e40af;} .s3{background:#dcfce7;color:#166534;} .s4{background:#f3f4f6;color:#6b7280;} .s5{background:#fff7ed;color:#c2410c;} .s6{background:#fce7f3;color:#9d174d;} .s7{background:#ede9fe;color:#6d28d9;}
+  .note-box { flex:1; border:1px solid #fef08a; background:#fefce8; border-radius:8px; padding:10px 12px; }
+  .note-item { font-size:10.5px; color:#444; margin-bottom:5px; padding-left:12px; position:relative; line-height:1.45; }
+  .note-item::before { content:'✦'; position:absolute; left:0; color:#ca8a04; font-size:8px; top:2px; }
+  .flow { display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:16px; padding:10px 12px; background:#f9fafb; border-radius:8px; border:1px solid #e5e7eb; }
+  .flow-step { display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; }
+  .flow-icon { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .flow-label { font-size:9px; color:#444; font-weight:600; text-align:center; }
+  .flow-arrow { color:#9ca3af; font-size:16px; flex-shrink:0; margin:0 2px; padding-bottom:14px; }
+  .footer { border-top:2px solid #f0f0f0; padding-top:10px; display:flex; align-items:center; justify-content:space-between; }
+  .footer-url { font-size:11px; color:#1e40af; font-weight:700; display:flex; align-items:center; gap:5px; }
+  .footer-note { font-size:9.5px; color:#aaa; }
+  .footer-dept { font-size:10px; color:#555; font-weight:600; }
+  @@media print { .wi-topbar { display:none; } body { background:#fff; padding:0; } .page { box-shadow:none; } .wi-wrap { padding:0; } }
+  .wi-btn.active { background:rgba(255,255,255,.35); font-weight:700; border-color:rgba(255,255,255,.6); }
+
+  .col-requester .role-head { background:#0ea5e9; }
+  .col-issuer    .role-head { background:#0d9488; }
+  .col-approver  .role-head { background:#16a34a; }
+  .col-requester .step-num  { background:#0ea5e9; }
+  .col-issuer    .step-num  { background:#0d9488; }
+  .col-approver  .step-num  { background:#16a34a; }
+</style>
+</head>
+<body>
+
+<div class="wi-topbar">
+  <a href="/Dashboard/Index"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg> กลับ Dashboard</a>
+  <span class="wi-title">📋 Work Instruction — IT PO Request System</span>
+  <div class="wi-actions">
+    <button onclick="setLang('th')" id="btn-th" class="wi-btn active">🇹🇭 ไทย</button>
+    <button onclick="setLang('en')" id="btn-en" class="wi-btn">🇬🇧 EN</button>
+    <a href="#" onclick="window.print();return false;" class="wi-btn">🖨️ Print / Save PDF</a>
+  </div>
+</div>
+
+<div id="content-th">
+<div class="wi-wrap">
+<div class="page">
+
+  <div class="header">
+    <div class="header-left"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj48c3ZnIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAxMTEgMzAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgeG1sbnM6c2VyaWY9Imh0dHA6Ly93d3cuc2VyaWYuY29tLyIgc3R5bGU9ImZpbGwtcnVsZTpldmVub2RkO2NsaXAtcnVsZTpldmVub2RkO3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2UtbWl0ZXJsaW1pdDoxLjQxNDIxOyI+PGc+PGc+PGc+PGc+PHBhdGggZD0iTTE3LjE0NSwwLjA3NmwxMy40MTEsMGwwLDMuNTA1bC04LjE1NCwwbDAsMi44OTZsNy42MiwwbDAsMy41MDVsLTcuNjIsMGwwLDMuMjc3bDguNjExLDBsMCwzLjQyOGwtMTMuODY4LDBsMCwtMTYuNjExWiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cGF0aCBkPSJNNDkuODM0LDAuMDc2bDUuMzM0LDBsNi4zMjQsOS4xNDRsMCwtOS4xNDRsMy44ODYsMGwwLDE2LjY4OGwtNS4zMzQsMGwtNi4zMjQsLTguOTkybDAsOC45MTVsLTMuODg2LDBsMCwtMTYuNjExWiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cmVjdCB4PSI2Ny44OTMiIHk9IjAuMDc2IiB3aWR0aD0iNS40ODYiIGhlaWdodD0iMTYuNjExIiBzdHlsZT0iZmlsbDojZWQxYzI0OyIvPjxwYXRoIGQ9Ik03NS44OTQsMGw1LjMzNCwwbDYuMzI0LDkuMTQ0bDAsLTkuMTQ0bDMuODg2LDBsMCwxNi42ODdsLTUuNDEsMGwtNi4yNDgsLTguOTkxbDAsOC45MTVsLTMuODg2LDBsMCwtMTYuNjExWiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cGF0aCBkPSJNNDEuMzc2LDYuNTUzbC0zLjA0OCwwbDAsLTMuMmwyLjk3MiwwYzAsMCAxLjQ0NywwLjIyOCAxLjI5NSwxLjc1MmMtMC4xNTIsMS41MjQgLTEuMjE5LDEuNDQ4IC0xLjIxOSwxLjQ0OG02LjMyNCw5LjE0NGMtMC4xNTIsLTAuNDU3IC0wLjE1MiwtMC4xNTIgLTAuMDc2LC0yLjc0M2MwLjA3NiwtMi41OTEgLTAuNDU3LC0zLjI3NyAtMC40NTcsLTMuMjc3Yy0wLjY4NiwtMS4yOTUgLTEuNjc2LC0xLjYgLTEuNjc2LC0xLjZjMCwwIDIuMjA5LC0wLjkxNCAyLjIwOSwtMy42NTdjMCwtMy45NjMgLTMuODEsLTQuMjY4IC0zLjgxLC00LjI2OGwtMTEuMDQ4LDBsMCwxNi42MTJsNS40ODYsMGwwLC02LjcwNmwxLjgyOSwwYzAuMjI4LDAgMC45OSwwLjA3NiAxLjI5NSwwLjIyOWMwLjUzMywwLjIyOCAwLjYxLDAuNTMzIDAuNjg2LDAuNjA5YzAuMTUyLDAuMzA1IDAuMDc2LDIuNTkxIDAuMDc2LDIuNTkxYzAsMCAwLDEuOTA1IDAuMjI5LDIuNTE1YzAuMjI4LDAuNjA5IDAuNjg1LDAuNzYyIDAuNjg1LDAuNzYybDUuMTgyLDBjMCwtMC4wNzcgLTAuNTM0LC0wLjY4NiAtMC42MSwtMS4wNjciIHN0eWxlPSJmaWxsOiNlZDFjMjQ7ZmlsbC1ydWxlOm5vbnplcm87Ii8+PHBhdGggZD0iTTk4LjA2OCw5LjQ0OWwxLjkwNCwtNS4xMDZsMS44MjksNS4xMDZsLTMuNzMzLDBabTYuMDk1LC05LjM3M2wtNi44NTcsMGwtNi4wOTYsMTYuNjExbDQuMTE0LDBsMS42MDEsLTMuNzMzbDUuOTQzLDBsMS42LDMuNzMzbDUuNzkxLDBsLTYuMDk2LC0xNi42MTFaIiBzdHlsZT0iZmlsbDojZWQxYzI0O2ZpbGwtcnVsZTpub256ZXJvOyIvPjxwYXRoIGQ9Ik04LjYxLDYuNzgybC0zLjA0OCwwbDAsLTMuMjAxbDIuOTcyLDBjMCwwIDEuNDQ4LDAuMjI5IDEuMjk2LDEuNzUzYy0wLjE1MywxLjUyNCAtMS4yMiwxLjQ0OCAtMS4yMiwxLjQ0OG0wLDYuNDc3bC0zLjA0OCwwbDAsLTMuMjAxbDIuOTcyLDBjMCwwIDEuNDQ4LDAuMjI5IDEuMjk2LDEuNzUzYy0wLjE1MywxLjQ0OCAtMS4yMiwxLjQ0OCAtMS4yMiwxLjQ0OG00LjQ5NiwtNS40MTFjMCwwIDEuOTgxLC0xLjE0MyAxLjgyOSwtMy41MDVjLTAuMTUyLC0zLjk2MiAtMy44ODYsLTQuMjY3IC0zLjg4NiwtNC4yNjdsLTExLjA0OSwwbDAsMTYuNjExYzAsMCAxMi4zNDQsMCAxMS45NjMsMGMtMC4zODEsMCAxLjM3MiwwIDIuMTM0LC0wLjgzOGMwLjMwNSwtMC4zMDQgMS41MjQsLTEuMjE5IDEuNiwtMy40MjljMC4xNTIsLTMuMDQ4IC0yLjU5MSwtNC41NzIgLTIuNTkxLC00LjU3MiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48L2c+PC9nPjwvZz48Zz48cGF0aCBkPSJNMC45LDIyLjM5OWMtMC40NSwwLjMgLTAuMTUsMC40NSAtMC4xNSwwLjY3NWMwLDAuMyAtMC4wNzUsMS4yIC0wLjA3NSwxLjQyNWMwLDAuMjI1IC0wLjE1LDIuMDI1IC0wLjE1LDIuNGMwLDAuNTI1IDAuMTUsMS42NSAwLjYsMS42NWMwLjQ1LDAgMC42LC0wLjc1IDAuNjc1LC0xLjEyNWMwLjA3NSwtMC4zIDAuODI1LC0zLjgyNSAxLjgsLTMuOWMwLjA3NSwwIDAuMywwLjc1IDAuMjI1LDEuMzVjLTAuMDc1LDAuNiAtMC4zLDIuNCAwLjIyNSwyLjQ3NWMwLjYsMC4wNzUgMC44MjUsLTAuNiAwLjksLTAuNzVjMC4wNzUsLTAuMTUgMC45LC0yLjMyNSAxLjA1LC0yLjMyNWMwLjE1LDAgMC41MjUsMi41NSAwLjY3NSwyLjg1YzAuMTUsMC40NSAwLjYsMC45IDEuMTI1LDAuNzVjMC4zNzUsLTAuMDc1IDAuNDUsLTAuNiAwLjM3NSwtMC43NWMtMC4wNzUsLTAuMDc1IC0wLjIyNSwtMC4wNzUgLTAuMywtMC4wNzVjLTAuMTUsMCAtMC4zNzUsMCAtMC40NSwtMC40NWMtMC4xNSwtMC4xNSAtMC42LC0zLjUyNSAtMS41LC0zLjUyNWMtMC42LDAgLTEuMjc1LDIuMjUgLTEuMjc1LDIuMjVjLTAuMDc1LDAgMCwtMC42NzUgLTAuMTUsLTEuMjc1Yy0wLjE1LC0wLjY3NSAtMC40NSwtMS4yNzUgLTAuODI1LC0xLjI3NWMtMC42LDAgLTEuMjc1LDAuNzUgLTEuNjUsMS41Yy0wLjQ1LDAuOSAtMC42NzUsMS44IC0wLjY3NSwxLjhjLTAuMDc1LDAgMC4yMjUsLTMgMC4yMjUsLTMuMjI1Yy0wLjA3NSwtMC4yMjUgLTAuMzc1LC0wLjYgLTAuNjc1LC0wLjQ1WiIgc3R5bGU9ImZpbGw6IzIzMWYyMDsiLz48cGF0aCBkPSJNMTQuMjUsMjcuMTI0Yy0wLjE1LC0wLjE1IC0wLjIyNSwwLjMgLTAuNzUsMC4xNWMtMC43NSwtMC4xNSAtMC4yMjUsLTIuMSAtMC4xNSwtMi4zMjVjMCwtMC4zIDAsLTAuNjc1IC0wLjE1LC0wLjljLTAuMTUsLTAuMjI1IC0wLjMsLTAuMTUgLTAuMywtMC4xNWMtMC4yMjUsLTAuMyAtMC41MjUsLTAuNiAtMS4wNSwtMC42Yy0xLjI3NSwtMC4wNzUgLTQuMiwzLjMgLTIuNTUsNC41YzEuMTI1LDAuODI1IDMsLTEuMjc1IDMuMDc1LC0xLjI3NWMwLjA3NSwwIC0wLjE1LDEuMjc1IDAuOSwxLjY1YzAuMzc1LDAuMTUgMC45LC0wLjM3NSAwLjk3NSwtMC40NWMtMC4wNzUsLTAuMjI1IDAuMTUsLTAuNDUgMCwtMC42Wm0tNC42NSwtMC4wNzVjLTAuNiwtMC4zIDEuNTc1LC0zLjQ1IDIuNDc1LC0yLjg1YzAuOTc1LDAuNiAtMS42NSwyLjIyNSAtMi40NzUsMi44NVoiIHN0eWxlPSJmaWxsOiMyMzFmMjA7Ii8+PHBhdGggZD0iTTI2Ljc3NSwyNy40MjRjLTAuMDc1LC0wLjE1IC0wLjc1LDAuMTUgLTEuMDUsMC4zYy0wLjIyNSwwLjA3NSAtMi4xNzUsMS4wNSAtMy4wNzUsLTAuNTI1YzAuNiwtMC4zIDEuMiwtMC43NSAxLjUsLTEuMTI1YzAuNzUsLTAuOTc1IDAuOSwtMi4xIDAuMzc1LC0yLjQ3NWMtMC42NzUsLTAuNDUgLTEuNzI1LC0wLjMgLTIuNCwwLjQ1Yy0wLjYsMC42NzUgLTAuOSwxLjY1IC0wLjYsMi43Yy0wLjMsMC4wNzUgLTAuNjc1LDAuMTUgLTAuOTc1LDAuMDc1Yy0xLjgsLTAuMTUgMC45LC02LjIyNSAtMC4zLC02LjNjLTAuNjc1LC0wLjA3NSAtMC41MjUsMC4zNzUgLTAuNjc1LDEuMjc1Yy0wLjE1LDAuOTc1IC0wLjUyNSwyLjU1IC0wLjUyNSwyLjdjMCwwLjA3NSAwLDAuMDc1IC0wLjA3NSwwLjE1YzAsLTAuMzc1IC0wLjM3NSwtMS4wNSAtMS4yNzUsLTEuMDVjLTAuOTc1LDAgLTIuOTI1LDEuMiAtMi45MjUsMi45MjVjMCwxLjI3NSAwLjgyNSwxLjQyNSAxLjA1LDEuNDI1YzAuODI1LDAgMS44LC0wLjYgMy4yMjUsLTIuMTc1YzAuMDc1LDAuMzc1IDAuMjI1LDAuOSAwLjQ1LDEuMmMwLjQ1LDAuNzUgMS40MjUsMC44MjUgMi40LDAuNTI1YzAuMDc1LDAuMDc1IDAuMDc1LDAuMTUgMC4xNSwwLjIyNWMxLjIsMS45NSAzLjgyNSwwLjkgNC42NSwwLjE1YzAsLTAuMDc1IDAuMTUsLTAuMyAwLjA3NSwtMC40NVptLTExLjAyNSwtMC4zNzVjLTAuNzUsLTAuNzUgMS4wNSwtMi43NzUgMi4xLC0yLjYyNWMwLjQ1LDAuMDc1IDAuNjc1LDAuNiAwLjk3NSwwLjM3NWMtMC42NzUsMC45NzUgLTIuNywyLjcgLTMuMDc1LDIuMjVabTguMTc1LC0yLjg1YzAuNDUsMC4zNzUgLTAuMzc1LDEuNTc1IC0xLjY1LDIuMTc1Yy0wLjMsLTEuNjUgMS4zNSwtMi40NzUgMS42NSwtMi4xNzVaIiBzdHlsZT0iZmlsbDojMjMxZjIwO2ZpbGwtcnVsZTpub256ZXJvOyIvPjxwYXRoIGQ9Ik0zOC42MjUsMjUuMDk5Yy0wLjM3NSwtMS4yIC0xLjM1LC0xLjY1IC0yLjQ3NSwtMS4yNzVjLTAuMjI1LDAuMDc1IC0wLjM3NSwwLjE1IC0wLjUyNSwwLjIyNWMwLjA3NSwtMC4wNzUgMC4wNzUsLTAuMTUgMC4wNzUsLTAuM2MtMC4wNzUsLTAuMjI1IC0wLjE1LC0wLjQ1IC0wLjYsLTAuNDVjLTAuMzc1LDAgLTIuMjUsMC4yMjUgLTIuODUsMC4zNzVjMC4wNzUsLTAuMzc1IDAuMTUsLTAuODI1IDAuMjI1LC0xLjI3NWMwLjE1LC0wLjkgMC40NSwtMS44NzUgMCwtMS45NWMtMC41MjUsLTAuMDc1IC0wLjQ1LDAuMyAtMC42LDAuNzVjLTAuMDc1LDAuMzc1IC0wLjMsMS41NzUgLTAuNTI1LDIuNjI1Yy0wLjksMC4xNSAtMS4yNzUsMC4wNzUgLTEuNSwwLjA3NWMtMC4yMjUsMC4wNzUgLTAuMzc1LDAuMyAtMC4zNzUsMC4zNzVjMCwwLjE1IDAuMjI1LDAuNTI1IDAuMzc1LDAuNTI1YzAuMDc1LDAgMC42NzUsLTAuMDc1IDEuMzUsLTAuMTVjLTAuMDc1LDAuOSAtMC42NzUsNC4yIDAuNDUsMy45YzAsMCAwLjA3NSwwIDAuMDc1LC0wLjA3NWMwLC0wLjMgMC4xNSwtMC4yMjUgMC4wNzUsLTAuNDVjLTAuMDc1LC0wLjIyNSAtMC4wNzUsLTAuMzc1IC0wLjA3NSwtMC42YzAsLTAuNDUgMC4yMjUsLTIuMDI1IDAuMywtMi45MjVjMC4xNSwwIDAuMjI1LDAgMC4zNzUsLTAuMDc1YzAuNiwtMC4wNzUgMS4yLC0wLjMgMi4xLC0wLjNjLTAuMjI1LDAuMzc1IC0wLjYsMS4wNSAtMC40NSwyLjFjMC4wNzUsMS4wNSAxLjEyNSwyLjYyNSAyLjkyNSwxLjg3NWMxLjQyNSwtMC41MjUgMi4wMjUsLTEuNzI1IDEuNjUsLTNabS0xLjgsMi4yNWMtMC41MjUsMC4xNSAtMS40MjUsMC40NSAtMS45NSwtMC42Yy0wLjE1LC0wLjUyNSAwLC0xLjEyNSAwLC0xLjEyNWMwLDAgMC4zLDAuMTUgMC4zNzUsMGMwLjE1LC0wLjE1IDAuMjI1LC0wLjM3NSAwLjQ1LC0wLjUyNWMwLjIyNSwtMC4xNSAwLjgyNSwtMC40NSAxLjA1LC0wLjUyNWMwLjM3NSwtMC4wNzUgMC45LC0wLjA3NSAxLjEyNSwwLjljMC4yMjUsMC45NzUgLTAuNTI1LDEuNzI1IC0xLjA1LDEuODc1WiIgc3R5bGU9ImZpbGw6IzIzMWYyMDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cGF0aCBkPSJNNTYuMDI1LDI3LjQ5OWMtMC4wNzUsLTAuMTUgLTEuMjc1LDAuMjI1IC0xLjgsMC4yMjVjLTAuNDUsMCAtMS45NSwwLjIyNSAtMS44LC0xLjA1YzEuOTUsLTAuMjI1IDMuNzUsLTIuNDc1IDIuODUsLTMuNDVjLTAuOSwtMC45NzUgLTMuMDc1LDEuMDUgLTMuNiwyLjYyNWMtMS42NSwtMC4zIC0wLjY3NSwtMi4zMjUgLTEuOCwtMi40Yy0wLjYsLTAuMDc1IC0wLjc1LDEuMjc1IC0wLjksMC4yNzVjLTAuMTUsMCAwLjE1LC0wLjc1IC0wLjM3NSwtMC43NWMtMC4zLDAgLTAuNDUsMC4zIC0wLjUyNSwwLjUyNWMtMC4wNzUsMC4xNSAtMC4xNSwwLjYgLTAuMjI1LDAuOTc1Yy0xLjIsMS41IC0zLjUyNSwyLjQgLTMuOTc1LDIuMWMtMS4wNSwtMC43NSAxLjEyNSwtMy45NzUgMS45NSwtMy43NWMwLjQ1LDAuMDc1IDAuNzUsMC4zNzUgMC44MjUsLTAuMjI1YzAsMCAwLjA3NSwtMC41MjUgLTAuODI1LC0wLjZjLTIuMDI1LC0wLjA3NSAtMy45NzUsNC4wNSAtMi41NSw1LjFjMS4xMjUsMC44MjUgMy4yMjUsLTAuNTI1IDQuNSwtMS4zNWMwLDAuNjc1IDAuMDc1LDEuNTc1IDAuNTI1LDEuNTc1YzAuNiwwIDAuMzc1LC0wLjY3NSAwLjQ1LC0wLjk3NWMwLjA3NSwtMC4yMjUgMC45NzUsLTIuNTUgMS4xMjUsLTIuNjI1YzAuMTUsMCAwLjE1LDEuNjUgMS44LDEuOTVjMCwxLjIgMC42LDEuODc1IDEuNSwxLjk1YzEuMjc1LDAuMDc1IDMsLTAuODI1IDIuODUsLTEuMTI1Wm0tMS40MjUsLTMuNjc1YzAuMTUsMC4xNSAtMC41MjUsMS42NSAtMS45NSwxLjk1YzAuNiwtMS40MjUgMS44LC0yLjEgMS45NSwtMS45NVoiIHN0eWxlPSJmaWxsOiMyMzFmMjA7ZmlsbC1ydWxlOm5vbnplcm87Ii8+PHBhdGggZD0iTTYyLjkyNSwyNy43MjRjLTAuMDc1LC0wLjE1IC0wLjksMC4zNzUgLTEuNDI1LDBjLTAuNzUsLTAuNTI1IDAuMjI1LC0yLjc3NSAwLjE1LC0zYzAsLTAuMDc1IC0wLjA3NSwtMC4xNSAtMC4wNzUsLTAuMjI1YzAsLTAuMyAtMC4yMjUsLTAuNiAtMC40NSwtMC43NWMtMi4xLC0xLjIgLTYuMDc1LDIuNzc1IC00LjU3NSw0LjEyNWMxLjIsMS4wNSAzLjUyNSwtMC43NSAzLjgyNSwtMS4yYzAsMCAtMC4wNzUsMS45NSAxLjIsMS45NWMwLjc1LDAgMS4xMjUsLTAuMyAxLjEyNSwtMC4zYzAuMDc1LDAgMC4zLC0wLjQ1IDAuMjI1LC0wLjZabS01Ljc3NSwtMC40NWMtMC42NzUsLTAuODI1IDIuMjUsLTMuMDc1IDMuMTUsLTIuNzc1bDAuMzc1LDAuMDc1YzAsMCAwLjA3NSwwIDAuMDc1LDAuMTVjLTAuMjI1LDEuMzUgLTMuMDc1LDMuMjI1IC0zLjYsMi41NVoiIHN0eWxlPSJmaWxsOiMyMzFmMjA7Ii8+PHBhdGggZD0iTTY5LjksMjIuMjQ5Yy0wLjE1LDAgLTAuMTUsLTAuMDc1IC0wLjM3NSwtMC4xNWMtMC4zNzUsLTAuMDc1IC0zLjE1LC0wLjIyNSAtNC4wNSwtMC4yMjVjMC4xNSwtMC42IDAuMzc1LC0xLjY1IC0wLjIyNSwtMS43MjVjLTAuMzc1LC0wLjA3NSAtMC40NSwwLjIyNSAtMC40NSwwLjM3NWMwLDAuMDc1IC0wLjE1LDAuNjc1IC0wLjIyNSwxLjM1Yy0wLjYsMCAtMS4yLDAgLTEuMjc1LDAuM2MtMC4wNzUsMC41MjUgMC4zNzUsMC42IDEuMDUsMC42Yy0wLjA3NSwwLjM3NSAtMC4xNSwwLjY3NSAtMC4yMjUsMC45Yy0wLjIyNSwwLjY3NSAtMC44MjUsMi45MjUgLTAuOSwzLjY3NWMwLDAuNjc1IDAuMywxLjM1IDAuNzUsMS4yYzAuMzc1LC0wLjA3NSAxLjEyNSwtMC41MjUgMi4xLC0wLjk3NWMwLjQ1LDEuMTI1IDEuNSwxLjEyNSAxLjcyNSwxLjEyNWMwLjY3NSwtMC4wNzUgMi4xLC0wLjgyNSAxLjg3NSwtMS4xMjVjLTAuMTUsLTAuMyAtMS4yLDAuNTI1IC0yLjE3NSwwLjNjLTAuNDUsLTAuMDc1IC0wLjY3NSwtMC4zNzUgLTAuODI1LC0wLjZjMS42NSwtMC43NSAzLjMsLTEuNTc1IDIuNjI1LC0yLjg1Yy0wLjY3NSwtMS4zNSAtMy42LDAuNTI1IC0zLjUyNSwyLjRjLTAuOSwwLjQ1IC0xLjcyNSwwLjY3NSAtMS44LDAuNjc1Yy0wLjE1LC0wLjA3NSAwLC0wLjY3NSAwLjA3NSwtMC45NzVjMC4wNzUsLTAuMzc1IDAuNzUsLTIuNjI1IDEuMDUsLTMuNjc1YzAuNzUsMCAyLjU1LDAuMTUgMy43NSwwLjA3NWMwLjc1LC0wLjA3NSAxLjIsLTAuMyAxLjIsLTAuMzc1YzAuMjI1LC0wLjIyNSAwLjIyNSwtMC4zIC0wLjE1LC0wLjNabS0zLjE1LDMuOTc1YzAuNjc1LC0xLjU3NSAxLjk1LC0xLjUgMS45NSwtMS4zNWMwLDAuMzc1IC0wLjk3NSwwLjk3NSAtMS45NSwxLjVjMCwtMC4wNzUgMCwtMC4xNSAwLC0wLjE1WiIgc3R5bGU9ImZpbGw6IzIzMWYyMDsiLz48L2c+PC9nPjwvc3ZnPg0K" alt="BERNINA" /></div>
+    <div class="header-right">
+      <div class="sys-title">IT PO Request System</div>
+      <div class="sys-sub">ระบบสร้างและอนุมัติใบสั่งซื้อ (Purchase Order) — แผนก IT</div>
+      <div class="doc-badge">WORK INSTRUCTION</div>
+    </div>
+  </div>
+
+  <div class="intro">
+    <span class="icon">🧾</span>
+    <div>
+      ระบบนี้ใช้สำหรับ <strong>สร้างและอนุมัติ Purchase Order (PO)</strong>
+      จาก PR ที่ได้รับอนุมัติแล้ว หรือสร้างตรงก็ได้
+      — ระบบออก PO Number อัตโนมัติ (IT-YY-XXXXX / OS-YY-XXXXX) และ Download PDF ได้ทันที
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-step"><div class="flow-icon" style="background:#e0f2fe;">📝</div><div class="flow-label">Draft PO</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#fef9c3;">📤</div><div class="flow-label">Submit</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#ccfbf1;">🖊️</div><div class="flow-label">Issuer<br>ลงนาม</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#dcfce7;">✅</div><div class="flow-label">Approve<br>(L1)</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#dcfce7;">🏆</div><div class="flow-label">Approve<br>(L2)</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#dbeafe;">📄</div><div class="flow-label">Completed<br>Download PDF</div></div>
+  </div>
+
+  <div class="roles">
+
+    <div class="role-col col-requester">
+      <div class="role-head">
+        <span class="role-icon">👤</span>
+        <div><div>ผู้สร้าง PO (Requester)</div><div class="role-sub">พนักงาน IT / ผู้ที่ได้รับสิทธิ์</div></div>
+      </div>
+      <div class="role-steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>สร้าง PO จาก PR</strong><small>กด "New PO from PR" เลือก PR ที่ Authorized แล้ว</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>หรือสร้าง PO ตรง</strong><small>กรอก Vendor, Subject, รายการสินค้า, ราคา</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>เลือก Issuer &amp; Approver</strong><small>กำหนดผู้ลงนามและผู้อนุมัติล่วงหน้า</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Submit PO</strong><small>ระบบออก PO Number อัตโนมัติ<br>IT-YY-XXXXX หรือ OS-YY-XXXXX</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">5</div><div class="step-text"><strong>ติดตามสถานะ</strong><small>ดูที่ Dashboard หรือรอ Email แจ้งทุกขั้นตอน</small></div></div>
+      </div>
+    </div>
+
+    <div class="role-col col-issuer">
+      <div class="role-head">
+        <span class="role-icon">🖊️</span>
+        <div><div>ผู้ออก PO (Issuer)</div><div class="role-sub">ช่างเทคนิค IT / ผู้รับผิดชอบ</div></div>
+      </div>
+      <div class="role-steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>รับ Email แจ้งเตือน</strong><small>เมื่อมี PO รอการลงนาม Issue</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>ตรวจสอบ PO</strong><small>รายการสินค้า, Vendor, ราคา</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Issue หรือ Reject</strong><small>Issue → ลงนามออก PO<br>Reject → ส่งกลับ Requester</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>PO Status → Issued</strong><small>ระบบส่งต่อให้ Approver L1 อัตโนมัติ</small></div></div>
+      </div>
+    </div>
+
+    <div class="role-col col-approver">
+      <div class="role-head">
+        <span class="role-icon">✅</span>
+        <div><div>ผู้อนุมัติ (Approver L1 &amp; L2)</div><div class="role-sub">หัวหน้า / ผู้มีอำนาจอนุมัติ</div></div>
+      </div>
+      <div class="role-steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>รับ Email แจ้งเตือน</strong><small>Approver L1 รับเมื่อ Issued<br>Approver L2 รับเมื่อ L1 อนุมัติแล้ว</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>ตรวจสอบ PO</strong><small>รายละเอียด, มูลค่า, ความเหมาะสม</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Approve หรือ Reject</strong><small>Approve L2 → PO Status "Completed"<br>ระบบแจ้ง Email Requester อัตโนมัติ</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Download PDF</strong><small>PO ที่ Completed สามารถ Download<br>PDF ส่ง Vendor ได้ทันที</small></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-row">
+    <div class="status-box">
+      <div class="box-title">🏷 สถานะ PO</div>
+      <div class="status-grid">
+        <div class="sbadge"><span class="s4">Draft</span></div>
+        <div class="sbadge"><span class="s1">Requested</span></div>
+        <div class="sbadge"><span class="s2">Issued</span></div>
+        <div class="sbadge"><span class="s1">Authorized</span></div>
+        <div class="sbadge"><span class="s3">Completed</span></div>
+        <div class="sbadge"><span class="s5">Rejected</span></div>
+        <div class="sbadge"><span class="s4">Cancelled</span></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="box-title">📄 PO Number Format</div>
+        <div class="status-grid">
+          <div class="sbadge"><span class="s2">IT-YY-XXXXX</span> IT Inventory</div>
+          <div class="sbadge"><span class="s7">OS-YY-XXXXX</span> Office Stationary</div>
+        </div>
+      </div>
+    </div>
+    <div class="note-box">
+      <div class="box-title" style="color:#92400e;">📌 หมายเหตุสำคัญ</div>
+      <div class="note-item">ระบบส่ง <strong>Email อัตโนมัติ</strong> ทุกขั้นตอน — ไม่ต้องแจ้งด้วยตนเอง</div>
+      <div class="note-item">PO สร้างได้จาก <strong>PR ที่ Authorized</strong> หรือสร้างตรงโดยไม่ต้องมี PR</div>
+      <div class="note-item">1 PO สามารถรวม <strong>หลาย PR</strong> ได้ในครั้งเดียว (ต้องแผนกเดียวกัน)</div>
+      <div class="note-item">PO ที่ <strong>Completed</strong> สามารถ Download PDF ส่ง Vendor ได้ทันที</div>
+      <div class="note-item">ปัญหาการใช้งาน ติดต่อ <strong>IT Admin</strong> โดยตรง</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <div class="footer-dept">แผนก IT — BERNINA Thailand</div>
+      <div class="footer-note">เอกสารนี้สามารถ Print หรือ Save as PDF ได้จากปุ่มด้านบน</div>
+    </div>
+    <div class="footer-url">🌐 https://it_porequest.berninathailand.com/</div>
+  </div>
+
+</div>
+</div>
+</div><!-- /content-th -->
+
+<!-- EN Content -->
+<div id="content-en" style="display:none">
+<div class="wi-wrap">
+<div class="page">
+
+  <div class="header">
+    <div class="header-left"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj48c3ZnIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAxMTEgMzAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgeG1sbnM6c2VyaWY9Imh0dHA6Ly93d3cuc2VyaWYuY29tLyIgc3R5bGU9ImZpbGwtcnVsZTpldmVub2RkO2NsaXAtcnVsZTpldmVub2RkO3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2UtbWl0ZXJsaW1pdDoxLjQxNDIxOyI+PGc+PGc+PGc+PGc+PHBhdGggZD0iTTE3LjE0NSwwLjA3NmwxMy40MTEsMGwwLDMuNTA1bC04LjE1NCwwbDAsMi44OTZsNy42MiwwbDAsMy41MDVsLTcuNjIsMGwwLDMuMjc3bDguNjExLDBsMCwzLjQyOGwtMTMuODY4LDBsMCwtMTYuNjExWiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cGF0aCBkPSJNNDkuODM0LDAuMDc2bDUuMzM0LDBsNi4zMjQsOS4xNDRsMCwtOS4xNDRsMy44ODYsMGwwLDE2LjY4OGwtNS4zMzQsMGwtNi4zMjQsLTguOTkybDAsOC45MTVsLTMuODg2LDBsMCwtMTYuNjExWiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cmVjdCB4PSI2Ny44OTMiIHk9IjAuMDc2IiB3aWR0aD0iNS40ODYiIGhlaWdodD0iMTYuNjExIiBzdHlsZT0iZmlsbDojZWQxYzI0OyIvPjxwYXRoIGQ9Ik03NS44OTQsMGw1LjMzNCwwbDYuMzI0LDkuMTQ0bDAsLTkuMTQ0bDMuODg2LDBsMCwxNi42ODdsLTUuNDEsMGwtNi4yNDgsLTguOTkxbDAsOC45MTVsLTMuODg2LDBsMCwtMTYuNjExWiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cGF0aCBkPSJNNDEuMzc2LDYuNTUzbC0zLjA0OCwwbDAsLTMuMmwyLjk3MiwwYzAsMCAxLjQ0NywwLjIyOCAxLjI5NSwxLjc1MmMtMC4xNTIsMS41MjQgLTEuMjE5LDEuNDQ4IC0xLjIxOSwxLjQ0OG02LjMyNCw5LjE0NGMtMC4xNTIsLTAuNDU3IC0wLjE1MiwtMC4xNTIgLTAuMDc2LC0yLjc0M2MwLjA3NiwtMi41OTEgLTAuNDU3LC0zLjI3NyAtMC40NTcsLTMuMjc3Yy0wLjY4NiwtMS4yOTUgLTEuNjc2LC0xLjYgLTEuNjc2LC0xLjZjMCwwIDIuMjA5LC0wLjkxNCAyLjIwOSwtMy42NTdjMCwtMy45NjMgLTMuODEsLTQuMjY4IC0zLjgxLC00LjI2OGwtMTEuMDQ4LDBsMCwxNi42MTJsNS40ODYsMGwwLC02LjcwNmwxLjgyOSwwYzAuMjI4LDAgMC45OSwwLjA3NiAxLjI5NSwwLjIyOWMwLjUzMywwLjIyOCAwLjYxLDAuNTMzIDAuNjg2LDAuNjA5YzAuMTUyLDAuMzA1IDAuMDc2LDIuNTkxIDAuMDc2LDIuNTkxYzAsMCAwLDEuOTA1IDAuMjI5LDIuNTE1YzAuMjI4LDAuNjA5IDAuNjg1LDAuNzYyIDAuNjg1LDAuNzYybDUuMTgyLDBjMCwtMC4wNzcgLTAuNTM0LC0wLjY4NiAtMC42MSwtMS4wNjciIHN0eWxlPSJmaWxsOiNlZDFjMjQ7ZmlsbC1ydWxlOm5vbnplcm87Ii8+PHBhdGggZD0iTTk4LjA2OCw5LjQ0OWwxLjkwNCwtNS4xMDZsMS44MjksNS4xMDZsLTMuNzMzLDBabTYuMDk1LC05LjM3M2wtNi44NTcsMGwtNi4wOTYsMTYuNjExbDQuMTE0LDBsMS42MDEsLTMuNzMzbDUuOTQzLDBsMS42LDMuNzMzbDUuNzkxLDBsLTYuMDk2LC0xNi42MTFaIiBzdHlsZT0iZmlsbDojZWQxYzI0O2ZpbGwtcnVsZTpub256ZXJvOyIvPjxwYXRoIGQ9Ik04LjYxLDYuNzgybC0zLjA0OCwwbDAsLTMuMjAxbDIuOTcyLDBjMCwwIDEuNDQ4LDAuMjI5IDEuMjk2LDEuNzUzYy0wLjE1MywxLjUyNCAtMS4yMiwxLjQ0OCAtMS4yMiwxLjQ0OG0wLDYuNDc3bC0zLjA0OCwwbDAsLTMuMjAxbDIuOTcyLDBjMCwwIDEuNDQ4LDAuMjI5IDEuMjk2LDEuNzUzYy0wLjE1MywxLjQ0OCAtMS4yMiwxLjQ0OCAtMS4yMiwxLjQ0OG00LjQ5NiwtNS40MTFjMCwwIDEuOTgxLC0xLjE0MyAxLjgyOSwtMy41MDVjLTAuMTUyLC0zLjk2MiAtMy44ODYsLTQuMjY3IC0zLjg4NiwtNC4yNjdsLTExLjA0OSwwbDAsMTYuNjExYzAsMCAxMi4zNDQsMCAxMS45NjMsMGMtMC4zODEsMCAxLjM3MiwwIDIuMTM0LC0wLjgzOGMwLjMwNSwtMC4zMDQgMS41MjQsLTEuMjE5IDEuNiwtMy40MjljMC4xNTIsLTMuMDQ4IC0yLjU5MSwtNC41NzIgLTIuNTkxLC00LjU3MiIgc3R5bGU9ImZpbGw6I2VkMWMyNDtmaWxsLXJ1bGU6bm9uemVybzsiLz48L2c+PC9nPjwvZz48Zz48cGF0aCBkPSJNMC45LDIyLjM5OWMtMC40NSwwLjMgLTAuMTUsMC40NSAtMC4xNSwwLjY3NWMwLDAuMyAtMC4wNzUsMS4yIC0wLjA3NSwxLjQyNWMwLDAuMjI1IC0wLjE1LDIuMDI1IC0wLjE1LDIuNGMwLDAuNTI1IDAuMTUsMS42NSAwLjYsMS42NWMwLjQ1LDAgMC42LC0wLjc1IDAuNjc1LC0xLjEyNWMwLjA3NSwtMC4zIDAuODI1LC0zLjgyNSAxLjgsLTMuOWMwLjA3NSwwIDAuMywwLjc1IDAuMjI1LDEuMzVjLTAuMDc1LDAuNiAtMC4zLDIuNCAwLjIyNSwyLjQ3NWMwLjYsMC4wNzUgMC44MjUsLTAuNiAwLjksLTAuNzVjMC4wNzUsLTAuMTUgMC45LC0yLjMyNSAxLjA1LC0yLjMyNWMwLjE1LDAgMC41MjUsMi41NSAwLjY3NSwyLjg1YzAuMTUsMC40NSAwLjYsMC45IDEuMTI1LDAuNzVjMC4zNzUsLTAuMDc1IDAuNDUsLTAuNiAwLjM3NSwtMC43NWMtMC4wNzUsLTAuMDc1IC0wLjIyNSwtMC4wNzUgLTAuMywtMC4wNzVjLTAuMTUsMCAtMC4zNzUsMCAtMC40NSwtMC40NWMtMC4xNSwtMC4xNSAtMC42LC0zLjUyNSAtMS41LC0zLjUyNWMtMC42LDAgLTEuMjc1LDIuMjUgLTEuMjc1LDIuMjVjLTAuMDc1LDAgMCwtMC42NzUgLTAuMTUsLTEuMjc1Yy0wLjE1LC0wLjY3NSAtMC40NSwtMS4yNzUgLTAuODI1LC0xLjI3NWMtMC42LDAgLTEuMjc1LDAuNzUgLTEuNjUsMS41Yy0wLjQ1LDAuOSAtMC42NzUsMS44IC0wLjY3NSwxLjhjLTAuMDc1LDAgMC4yMjUsLTMgMC4yMjUsLTMuMjI1Yy0wLjA3NSwtMC4yMjUgLTAuMzc1LC0wLjYgLTAuNjc1LC0wLjQ1WiIgc3R5bGU9ImZpbGw6IzIzMWYyMDsiLz48cGF0aCBkPSJNMTQuMjUsMjcuMTI0Yy0wLjE1LC0wLjE1IC0wLjIyNSwwLjMgLTAuNzUsMC4xNWMtMC43NSwtMC4xNSAtMC4yMjUsLTIuMSAtMC4xNSwtMi4zMjVjMCwtMC4zIDAsLTAuNjc1IC0wLjE1LC0wLjljLTAuMTUsLTAuMjI1IC0wLjMsLTAuMTUgLTAuMywtMC4xNWMtMC4yMjUsLTAuMyAtMC41MjUsLTAuNiAtMS4wNSwtMC42Yy0xLjI3NSwtMC4wNzUgLTQuMiwzLjMgLTIuNTUsNC41YzEuMTI1LDAuODI1IDMsLTEuMjc1IDMuMDc1LC0xLjI3NWMwLjA3NSwwIC0wLjE1LDEuMjc1IDAuOSwxLjY1YzAuMzc1LDAuMTUgMC45LC0wLjM3NSAwLjk3NSwtMC40NWMtMC4wNzUsLTAuMjI1IDAuMTUsLTAuNDUgMCwtMC42Wm0tNC42NSwtMC4wNzVjLTAuNiwtMC4zIDEuNTc1LC0zLjQ1IDIuNDc1LC0yLjg1YzAuOTc1LDAuNiAtMS42NSwyLjIyNSAtMi40NzUsMi44NVoiIHN0eWxlPSJmaWxsOiMyMzFmMjA7Ii8+PHBhdGggZD0iTTI2Ljc3NSwyNy40MjRjLTAuMDc1LC0wLjE1IC0wLjc1LDAuMTUgLTEuMDUsMC4zYy0wLjIyNSwwLjA3NSAtMi4xNzUsMS4wNSAtMy4wNzUsLTAuNTI1YzAuNiwtMC4zIDEuMiwtMC43NSAxLjUsLTEuMTI1YzAuNzUsLTAuOTc1IDAuOSwtMi4xIDAuMzc1LC0yLjQ3NWMtMC42NzUsLTAuNDUgLTEuNzI1LC0wLjMgLTIuNCwwLjQ1Yy0wLjYsMC42NzUgLTAuOSwxLjY1IC0wLjYsMi43Yy0wLjMsMC4wNzUgLTAuNjc1LDAuMTUgLTAuOTc1LDAuMDc1Yy0xLjgsLTAuMTUgMC45LC02LjIyNSAtMC4zLC02LjNjLTAuNjc1LC0wLjA3NSAtMC41MjUsMC4zNzUgLTAuNjc1LDEuMjc1Yy0wLjE1LDAuOTc1IC0wLjUyNSwyLjU1IC0wLjUyNSwyLjdjMCwwLjA3NSAwLDAuMDc1IC0wLjA3NSwwLjE1YzAsLTAuMzc1IC0wLjM3NSwtMS4wNSAtMS4yNzUsLTEuMDVjLTAuOTc1LDAgLTIuOTI1LDEuMiAtMi45MjUsMi45MjVjMCwxLjI3NSAwLjgyNSwxLjQyNSAxLjA1LDEuNDI1YzAuODI1LDAgMS44LC0wLjYgMy4yMjUsLTIuMTc1YzAuMDc1LDAuMzc1IDAuMjI1LDAuOSAwLjQ1LDEuMmMwLjQ1LDAuNzUgMS40MjUsMC44MjUgMi40LDAuNTI1YzAuMDc1LDAuMDc1IDAuMDc1LDAuMTUgMC4xNSwwLjIyNWMxLjIsMS45NSAzLjgyNSwwLjkgNC42NSwwLjE1YzAsLTAuMDc1IDAuMTUsLTAuMyAwLjA3NSwtMC40NVptLTExLjAyNSwtMC4zNzVjLTAuNzUsLTAuNzUgMS4wNSwtMi43NzUgMi4xLC0yLjYyNWMwLjQ1LDAuMDc1IDAuNjc1LDAuNiAwLjk3NSwwLjM3NWMtMC42NzUsMC45NzUgLTIuNywyLjcgLTMuMDc1LDIuMjVabTguMTc1LC0yLjg1YzAuNDUsMC4zNzUgLTAuMzc1LDEuNTc1IC0xLjY1LDIuMTc1Yy0wLjMsLTEuNjUgMS4zNSwtMi40NzUgMS42NSwtMi4xNzVaIiBzdHlsZT0iZmlsbDojMjMxZjIwO2ZpbGwtcnVsZTpub256ZXJvOyIvPjxwYXRoIGQ9Ik0zOC42MjUsMjUuMDk5Yy0wLjM3NSwtMS4yIC0xLjM1LC0xLjY1IC0yLjQ3NSwtMS4yNzVjLTAuMjI1LDAuMDc1IC0wLjM3NSwwLjE1IC0wLjUyNSwwLjIyNWMwLjA3NSwtMC4wNzUgMC4wNzUsLTAuMTUgMC4wNzUsLTAuM2MtMC4wNzUsLTAuMjI1IC0wLjE1LC0wLjQ1IC0wLjYsLTAuNDVjLTAuMzc1LDAgLTIuMjUsMC4yMjUgLTIuODUsMC4zNzVjMC4wNzUsLTAuMzc1IDAuMTUsLTAuODI1IDAuMjI1LC0xLjI3NWMwLjE1LC0wLjkgMC40NSwtMS44NzUgMCwtMS45NWMtMC41MjUsLTAuMDc1IC0wLjQ1LDAuMyAtMC42LDAuNzVjLTAuMDc1LDAuMzc1IC0wLjMsMS41NzUgLTAuNTI1LDIuNjI1Yy0wLjksMC4xNSAtMS4yNzUsMC4wNzUgLTEuNSwwLjA3NWMtMC4yMjUsMC4wNzUgLTAuMzc1LDAuMyAtMC4zNzUsMC4zNzVjMCwwLjE1IDAuMjI1LDAuNTI1IDAuMzc1LDAuNTI1YzAuMDc1LDAgMC42NzUsLTAuMDc1IDEuMzUsLTAuMTVjLTAuMDc1LDAuOSAtMC42NzUsNC4yIDAuNDUsMy45YzAsMCAwLjA3NSwwIDAuMDc1LC0wLjA3NWMwLC0wLjMgMC4xNSwtMC4yMjUgMC4wNzUsLTAuNDVjLTAuMDc1LC0wLjIyNSAtMC4wNzUsLTAuMzc1IC0wLjA3NSwtMC42YzAsLTAuNDUgMC4yMjUsLTIuMDI1IDAuMywtMi45MjVjMC4xNSwwIDAuMjI1LDAgMC4zNzUsLTAuMDc1YzAuNiwtMC4wNzUgMS4yLC0wLjMgMi4xLC0wLjNjLTAuMjI1LDAuMzc1IC0wLjYsMS4wNSAtMC40NSwyLjFjMC4wNzUsMS4wNSAxLjEyNSwyLjYyNSAyLjkyNSwxLjg3NWMxLjQyNSwtMC41MjUgMi4wMjUsLTEuNzI1IDEuNjUsLTNabS0xLjgsMi4yNWMtMC41MjUsMC4xNSAtMS40MjUsMC40NSAtMS45NSwtMC42Yy0wLjE1LC0wLjUyNSAwLC0xLjEyNSAwLC0xLjEyNWMwLDAgMC4zLDAuMTUgMC4zNzUsMGMwLjE1LC0wLjE1IDAuMjI1LC0wLjM3NSAwLjQ1LC0wLjUyNWMwLjIyNSwtMC4xNSAwLjgyNSwtMC40NSAxLjA1LC0wLjUyNWMwLjM3NSwtMC4wNzUgMC45LC0wLjA3NSAxLjEyNSwwLjljMC4yMjUsMC45NzUgLTAuNTI1LDEuNzI1IC0xLjA1LDEuODc1WiIgc3R5bGU9ImZpbGw6IzIzMWYyMDtmaWxsLXJ1bGU6bm9uemVybzsiLz48cGF0aCBkPSJNNTYuMDI1LDI3LjQ5OWMtMC4wNzUsLTAuMTUgLTEuMjc1LDAuMjI1IC0xLjgsMC4yMjVjLTAuNDUsMCAtMS45NSwwLjIyNSAtMS44LC0xLjA1YzEuOTUsLTAuMjI1IDMuNzUsLTIuNDc1IDIuODUsLTMuNDVjLTAuOSwtMC45NzUgLTMuMDc1LDEuMDUgLTMuNiwyLjYyNWMtMS42NSwtMC4zIC0wLjY3NSwtMi4zMjUgLTEuOCwtMi40Yy0wLjYsLTAuMDc1IC0wLjc1LDEuMjc1IC0wLjksMC4yNzVjLTAuMTUsMCAwLjE1LC0wLjc1IC0wLjM3NSwtMC43NWMtMC4zLDAgLTAuNDUsMC4zIC0wLjUyNSwwLjUyNWMtMC4wNzUsMC4xNSAtMC4xNSwwLjYgLTAuMjI1LDAuOTc1Yy0xLjIsMS41IC0zLjUyNSwyLjQgLTMuOTc1LDIuMWMtMS4wNSwtMC43NSAxLjEyNSwtMy45NzUgMS45NSwtMy43NWMwLjQ1LDAuMDc1IDAuNzUsMC4zNzUgMC44MjUsLTAuMjI1YzAsMCAwLjA3NSwtMC41MjUgLTAuODI1LC0wLjZjLTIuMDI1LC0wLjA3NSAtMy45NzUsNC4wNSAtMi41NSw1LjFjMS4xMjUsMC44MjUgMy4yMjUsLTAuNTI1IDQuNSwtMS4zNWMwLDAuNjc1IDAuMDc1LDEuNTc1IDAuNTI1LDEuNTc1YzAuNiwwIDAuMzc1LC0wLjY3NSAwLjQ1LC0wLjk3NWMwLjA3NSwtMC4yMjUgMC45NzUsLTIuNTUgMS4xMjUsLTIuNjI1YzAuMTUsMCAwLjE1LDEuNjUgMS44LDEuOTVjMCwxLjIgMC42LDEuODc1IDEuNSwxLjk1YzEuMjc1LDAuMDc1IDMsLTAuODI1IDIuODUsLTEuMTI1Wm0tMS40MjUsLTMuNjc1YzAuMTUsMC4xNSAtMC41MjUsMS42NSAtMS45NSwxLjk1YzAuNiwtMS40MjUgMS44LC0yLjEgMS45NSwtMS45NVoiIHN0eWxlPSJmaWxsOiMyMzFmMjA7ZmlsbC1ydWxlOm5vbnplcm87Ii8+PHBhdGggZD0iTTYyLjkyNSwyNy43MjRjLTAuMDc1LC0wLjE1IC0wLjksMC4zNzUgLTEuNDI1LDBjLTAuNzUsLTAuNTI1IDAuMjI1LC0yLjc3NSAwLjE1LC0zYzAsLTAuMDc1IC0wLjA3NSwtMC4xNSAtMC4wNzUsLTAuMjI1YzAsLTAuMyAtMC4yMjUsLTAuNiAtMC40NSwtMC43NWMtMi4xLC0xLjIgLTYuMDc1LDIuNzc1IC00LjU3NSw0LjEyNWMxLjIsMS4wNSAzLjUyNSwtMC43NSAzLjgyNSwtMS4yYzAsMCAtMC4wNzUsMS45NSAxLjIsMS45NWMwLjc1LDAgMS4xMjUsLTAuMyAxLjEyNSwtMC4zYzAuMDc1LDAgMC4zLC0wLjQ1IDAuMjI1LC0wLjZabS01Ljc3NSwtMC40NWMtMC42NzUsLTAuODI1IDIuMjUsLTMuMDc1IDMuMTUsLTIuNzc1bDAuMzc1LDAuMDc1YzAsMCAwLjA3NSwwIDAuMDc1LDAuMTVjLTAuMjI1LDEuMzUgLTMuMDc1LDMuMjI1IC0zLjYsMi41NVoiIHN0eWxlPSJmaWxsOiMyMzFmMjA7Ii8+PHBhdGggZD0iTTY5LjksMjIuMjQ5Yy0wLjE1LDAgLTAuMTUsLTAuMDc1IC0wLjM3NSwtMC4xNWMtMC4zNzUsLTAuMDc1IC0zLjE1LC0wLjIyNSAtNC4wNSwtMC4yMjVjMC4xNSwtMC42IDAuMzc1LC0xLjY1IC0wLjIyNSwtMS43MjVjLTAuMzc1LC0wLjA3NSAtMC40NSwwLjIyNSAtMC40NSwwLjM3NWMwLDAuMDc1IC0wLjE1LDAuNjc1IC0wLjIyNSwxLjM1Yy0wLjYsMCAtMS4yLDAgLTEuMjc1LDAuM2MtMC4wNzUsMC41MjUgMC4zNzUsMC42IDEuMDUsMC42Yy0wLjA3NSwwLjM3NSAtMC4xNSwwLjY3NSAtMC4yMjUsMC45Yy0wLjIyNSwwLjY3NSAtMC44MjUsMi45MjUgLTAuOSwzLjY3NWMwLDAuNjc1IDAuMywxLjM1IDAuNzUsMS4yYzAuMzc1LC0wLjA3NSAxLjEyNSwtMC41MjUgMi4xLC0wLjk3NWMwLjQ1LDEuMTI1IDEuNSwxLjEyNSAxLjcyNSwxLjEyNWMwLjY3NSwtMC4wNzUgMi4xLC0wLjgyNSAxLjg3NSwtMS4xMjVjLTAuMTUsLTAuMyAtMS4yLDAuNTI1IC0yLjE3NSwwLjNjLTAuNDUsLTAuMDc1IC0wLjY3NSwtMC4zNzUgLTAuODI1LC0wLjZjMS42NSwtMC43NSAzLjMsLTEuNTc1IDIuNjI1LC0yLjg1Yy0wLjY3NSwtMS4zNSAtMy42LDAuNTI1IC0zLjUyNSwyLjRjLTAuOSwwLjQ1IC0xLjcyNSwwLjY3NSAtMS44LDAuNjc1Yy0wLjE1LC0wLjA3NSAwLC0wLjY3NSAwLjA3NSwtMC45NzVjMC4wNzUsLTAuMzc1IDAuNzUsLTIuNjI1IDEuMDUsLTMuNjc1YzAuNzUsMCAyLjU1LDAuMTUgMy43NSwwLjA3NWMwLjc1LC0wLjA3NSAxLjIsLTAuMyAxLjIsLTAuMzc1YzAuMjI1LC0wLjIyNSAwLjIyNSwtMC4zIC0wLjE1LC0wLjNabS0zLjE1LDMuOTc1YzAuNjc1LC0xLjU3NSAxLjk1LC0xLjUgMS45NSwtMS4zNWMwLDAuMzc1IC0wLjk3NSwwLjk3NSAtMS45NSwxLjVjMCwtMC4wNzUgMCwtMC4xNSAwLC0wLjE1WiIgc3R5bGU9ImZpbGw6IzIzMWYyMDsiLz48L2c+PC9nPjwvc3ZnPg0K" alt="BERNINA" /></div>
+    <div class="header-right">
+      <div class="sys-title">IT PO Request System</div>
+      <div class="sys-sub">Purchase Order (PO) Creation &amp; Approval System — IT Department</div>
+      <div class="doc-badge">WORK INSTRUCTION</div>
+    </div>
+  </div>
+
+  <div class="intro">
+    <span class="icon">🧾</span>
+    <div>
+      This system is used to <strong>create and approve Purchase Orders (PO)</strong>
+      from Authorized PRs or directly — PO Number is auto-generated
+      (IT-YY-XXXXX / OS-YY-XXXXX) and PDF is available for immediate download.
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-step"><div class="flow-icon" style="background:#e0f2fe;">📝</div><div class="flow-label">Draft PO</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#fef9c3;">📤</div><div class="flow-label">Submit</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#ccfbf1;">🖊️</div><div class="flow-label">Issuer<br>Sign</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#dcfce7;">✅</div><div class="flow-label">Approve<br>(L1)</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#dcfce7;">🏆</div><div class="flow-label">Approve<br>(L2)</div></div>
+    <div class="flow-arrow">›</div>
+    <div class="flow-step"><div class="flow-icon" style="background:#dbeafe;">📄</div><div class="flow-label">Completed<br>Download PDF</div></div>
+  </div>
+
+  <div class="roles">
+
+    <div class="role-col col-requester">
+      <div class="role-head">
+        <span class="role-icon">👤</span>
+        <div><div>PO Creator (Requester)</div><div class="role-sub">IT Staff / Authorized User</div></div>
+      </div>
+      <div class="role-steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Create PO from PR</strong><small>Click "New PO from PR" — select an Authorized PR</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Or create PO directly</strong><small>Enter Vendor, Subject, items, and price</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Select Issuer &amp; Approver</strong><small>Assign signer and approver in advance</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Submit PO</strong><small>System auto-generates PO Number<br>IT-YY-XXXXX or OS-YY-XXXXX</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">5</div><div class="step-text"><strong>Track status</strong><small>Check Dashboard or wait for email notification at each step</small></div></div>
+      </div>
+    </div>
+
+    <div class="role-col col-issuer">
+      <div class="role-head">
+        <span class="role-icon">🖊️</span>
+        <div><div>PO Issuer (Issuer)</div><div class="role-sub">IT Technician / Responsible Person</div></div>
+      </div>
+      <div class="role-steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Receive email notification</strong><small>When a PO is pending your Issue signature</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Review PO</strong><small>Items, Vendor, pricing</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Issue or Reject</strong><small>Issue → sign and release PO<br>Reject → return to Requester</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>PO Status → Issued</strong><small>System auto-forwards to Approver L1</small></div></div>
+      </div>
+    </div>
+
+    <div class="role-col col-approver">
+      <div class="role-head">
+        <span class="role-icon">✅</span>
+        <div><div>Approver (L1 &amp; L2)</div><div class="role-sub">Manager / Authorized Approver</div></div>
+      </div>
+      <div class="role-steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Receive email notification</strong><small>L1 receives after Issued<br>L2 receives after L1 approves</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Review PO</strong><small>Details, value, suitability</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Approve or Reject</strong><small>L2 Approve → PO Status "Completed"<br>System auto-notifies Requester by email</small></div></div>
+        <hr class="step-divider">
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Download PDF</strong><small>Completed PO can be downloaded<br>as PDF to send to Vendor immediately</small></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-row">
+    <div class="status-box">
+      <div class="box-title">🏷 PO Status</div>
+      <div class="status-grid">
+        <div class="sbadge"><span class="s4">Draft</span></div>
+        <div class="sbadge"><span class="s1">Requested</span></div>
+        <div class="sbadge"><span class="s2">Issued</span></div>
+        <div class="sbadge"><span class="s1">Authorized</span></div>
+        <div class="sbadge"><span class="s3">Completed</span></div>
+        <div class="sbadge"><span class="s5">Rejected</span></div>
+        <div class="sbadge"><span class="s4">Cancelled</span></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="box-title">📄 PO Number Format</div>
+        <div class="status-grid">
+          <div class="sbadge"><span class="s2">IT-YY-XXXXX</span> IT Inventory</div>
+          <div class="sbadge"><span class="s7">OS-YY-XXXXX</span> Office Stationary</div>
+        </div>
+      </div>
+    </div>
+    <div class="note-box">
+      <div class="box-title" style="color:#92400e;">📌 Important Notes</div>
+      <div class="note-item">System sends <strong>automatic email</strong> at every step — no manual notification needed</div>
+      <div class="note-item">PO can be created from an <strong>Authorized PR</strong> or directly without a PR</div>
+      <div class="note-item">One PO can combine <strong>multiple PRs</strong> in a single order (same department)</div>
+      <div class="note-item"><strong>Completed</strong> PO can be downloaded as PDF to send to Vendor immediately</div>
+      <div class="note-item">For assistance, contact <strong>IT Admin</strong> directly</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <div class="footer-dept">IT Department — BERNINA Thailand</div>
+      <div class="footer-note">This document can be Printed or Saved as PDF using the button above.</div>
+    </div>
+    <div class="footer-url">🌐 https://it_porequest.berninathailand.com/</div>
+  </div>
+
+</div>
+</div>
+</div><!-- /content-en -->
+
+<script>
+function setLang(lang) {
+  document.getElementById('content-th').style.display = lang === 'th' ? '' : 'none';
+  document.getElementById('content-en').style.display = lang === 'en' ? '' : 'none';
+  document.getElementById('btn-th').classList.toggle('active', lang === 'th');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  try { localStorage.setItem('wi-lang', lang); } catch(e) {}
+}
+document.addEventListener('DOMContentLoaded', function() {
+  try { var l = localStorage.getItem('wi-lang'); if (l === 'en') setLang('en'); } catch(e) {}
+});
+</script>
+</body>
+</html>

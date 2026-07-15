@@ -17,6 +17,8 @@ namespace BTITPORequest.Models
         // Chart Data
         public List<DailyAmountData> DailyAmounts { get; set; } = new();
         public List<StatusSummaryData> StatusSummary { get; set; } = new();
+        public List<MonthlyBreakdownData> MonthlyBreakdown { get; set; } = new();
+        public int ChartYear { get; set; } = DateTime.Today.Year;
 
         // Recent POs
         public List<PORequestModel> RecentPOs { get; set; } = new();
@@ -33,6 +35,7 @@ namespace BTITPORequest.Models
     public class DailyAmountData
     {
         public string Date { get; set; } = string.Empty;
+        public string DeptPrefix { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public int Count { get; set; }
     }
@@ -40,6 +43,14 @@ namespace BTITPORequest.Models
     public class StatusSummaryData
     {
         public string Status { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal Amount { get; set; }
+    }
+
+    public class MonthlyBreakdownData
+    {
+        public int Month { get; set; }
+        public string DeptPrefix { get; set; } = string.Empty;
         public int Count { get; set; }
         public decimal Amount { get; set; }
     }
