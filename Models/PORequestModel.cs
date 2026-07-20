@@ -11,7 +11,8 @@ namespace BTITPORequest.Models
         Completed = 6,
         RejectedByApprover1 = -1,
         RejectedByApprover2 = -2,
-        Cancelled = -9
+        Cancelled = -9,
+        UnderRevision = -8   // Admin Reject Edit — Requester กำลังแก้ไข
     }
 
     public class PORequestModel
@@ -62,28 +63,35 @@ namespace BTITPORequest.Models
         public POStatus Status { get; set; } = POStatus.Draft;
         public string StatusLabel => Status switch
         {
-            POStatus.Draft => "Draft",
-            POStatus.Requested => "Requested",
-            POStatus.Issued => "Issued",
-            POStatus.Authorized => "Authorized",
-            POStatus.Completed => "Completed",
+            POStatus.Draft          => "Draft",
+            POStatus.Requested      => "Requested",
+            POStatus.Issued         => "Issued",
+            POStatus.Authorized     => "Authorized",
+            POStatus.Completed      => "Completed",
             POStatus.RejectedByApprover1 => "Rejected",
             POStatus.RejectedByApprover2 => "Rejected",
-            POStatus.Cancelled => "Cancelled",
+            POStatus.Cancelled      => "Cancelled",
+            POStatus.UnderRevision  => "Under Revision",
             _ => "Unknown"
         };
         public string StatusBadgeClass => Status switch
         {
-            POStatus.Draft => "secondary",
-            POStatus.Requested => "primary",
-            POStatus.Issued => "info",
-            POStatus.Authorized => "warning",
-            POStatus.Completed => "success",
+            POStatus.Draft          => "secondary",
+            POStatus.Requested      => "primary",
+            POStatus.Issued         => "info",
+            POStatus.Authorized     => "warning",
+            POStatus.Completed      => "success",
             POStatus.RejectedByApprover1 => "danger",
             POStatus.RejectedByApprover2 => "danger",
-            POStatus.Cancelled => "dark",
+            POStatus.Cancelled      => "dark",
+            POStatus.UnderRevision  => "warning",
             _ => "secondary"
         };
+        // Revision tracking
+        public int RevisionNo { get; set; }
+        public int? PreRevisionStatus { get; set; }
+        // UI flags
+        public bool CanRejectEdit { get; set; }
 
         // ── Requester ────────────────────────────────────────
         public string RequesterSam { get; set; } = string.Empty;

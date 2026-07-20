@@ -296,7 +296,8 @@ namespace BTITPORequest.Controllers
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
             if (po.RequesterSam != user.SamAcc && user.Role != "Admin") return Forbid();
-            if (po.Status != POStatus.Draft) return BadRequest("Only drafts can be edited.");
+            if (po.Status != POStatus.Draft && po.Status != POStatus.UnderRevision)
+                return BadRequest("Only drafts or POs under revision can be edited.");
             var allEmployees = await _authService.GetAllUsersAsync();
             return View(new POCreateViewModel
             {
@@ -328,9 +329,16 @@ namespace BTITPORequest.Controllers
             po.PreAssignedApprover1Sam = selectedApprover1Sam;
             po.PreAssignedApprover2Sam = selectedApprover2Sam;
             RecalcTotals(po, lineItems);
+
+            // ตรวจสอบสถานะปัจจุบันก่อน Update (เพื่อ detect Revision Re-Submit)
+            var existingPo = await _poService.GetPOByIdAsync(po.POId);
+            bool isRevision = existingPo?.Status == POStatus.UnderRevision;
+
             await _poService.UpdatePOAsync(po, lineItems);
-            if (submitNow) await DoSubmitAsync(po.POId, po.PONumber, user);
-            TempData["Success"] = submitNow ? "PO submitted & signed." : "PO updated.";
+            if (submitNow) await DoSubmitAsync(po.POId, po.PONumber, user, isRevision: isRevision);
+            TempData["Success"] = submitNow
+                ? (isRevision ? $"PO {po.PONumber} แก้ไขเรียบร้อยแล้ว" : "PO submitted & signed.")
+                : "PO updated.";
             return RedirectToAction("Detail", new { id = po.POId });
         }
 
@@ -342,15 +350,22 @@ namespace BTITPORequest.Controllers
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
-            po.CanEdit   = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
-            po.CanSubmit = po.Status == POStatus.Draft && po.RequesterSam == user.SamAcc;
-
             bool isAdmin = user.Role == "Admin";
+            bool isOwnerOrAdmin = po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase) || isAdmin;
+            po.CanEdit   = (po.Status == POStatus.Draft || po.Status == POStatus.UnderRevision)
+                           && isOwnerOrAdmin;
+            po.CanSubmit = (po.Status == POStatus.Draft || po.Status == POStatus.UnderRevision)
+                           && isOwnerOrAdmin;
 
-            // ยกเลิกได้: creator หรือ Admin, เฉพาะ Draft/Requested/Issued
-            var cancellableStatuses = new[] { POStatus.Draft, POStatus.Requested, POStatus.Issued };
-            po.CanCancel = cancellableStatuses.Contains(po.Status)
-                && (po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase) || isAdmin);
+            // ยกเลิกได้:
+            //   Admin      → ทุก status ยกเว้น Cancelled(-9) และ Rejected(-1,-2)
+            //   Non-admin  → Draft/Requested/Issued และต้องเป็น creator เท่านั้น
+            var nonCancelable = new[] { (POStatus)(-9), (POStatus)(-1), (POStatus)(-2) };
+            if (isAdmin)
+                po.CanCancel = !nonCancelable.Contains(po.Status);
+            else
+                po.CanCancel = new[] { POStatus.Draft, POStatus.Requested, POStatus.Issued }.Contains(po.Status)
+                    && po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
 
             // assigned to this PO specifically
             bool isAssignedIssuer   = !string.IsNullOrEmpty(po.PreAssignedIssuerSam)
@@ -366,6 +381,13 @@ namespace BTITPORequest.Controllers
             po.CanRejectApprove = po.Status == POStatus.Issued && (isAdmin || isAssignedApprover);
             po.CanApprove1      = po.Status == POStatus.Issued && (isAdmin || isAssignedApprover);
             po.CanApprove2      = false;
+
+            // Admin: Reject Edit — ส่งกลับให้แก้ไขโดยไม่ผ่าน Workflow ใหม่
+            //   ได้เฉพาะ PO ที่อยู่ใน Requested/Issued/Authorized/Completed เท่านั้น
+            po.CanRejectEdit = isAdmin && new[] {
+                POStatus.Requested, POStatus.Issued,
+                POStatus.Authorized, POStatus.Completed
+            }.Contains(po.Status);
 
             // ทุกคนที่ login แล้วสามารถ Download PDF ได้เมื่อ Completed
             po.CanDownloadPDF = po.Status == POStatus.Completed;
@@ -383,22 +405,31 @@ namespace BTITPORequest.Controllers
             if (po == null) return NotFound();
 
             bool isAdmin = user.Role == "Admin";
-            var cancellable = new[] { POStatus.Draft, POStatus.Requested, POStatus.Issued };
 
-            if (!cancellable.Contains(po.Status))
+            // ตรวจสิทธิ์ก่อน cancel
+            var nonCancelable = new[] { (POStatus)(-9), (POStatus)(-1), (POStatus)(-2) };
+            if (isAdmin)
             {
-                TempData["Error"] = "ไม่สามารถยกเลิก PO นี้ได้ (สถานะไม่อนุญาต)";
-                return RedirectToAction("Detail", new { id });
+                // Admin: ยกเลิกได้ทุก status ยกเว้น Cancelled/Rejected
+                if (nonCancelable.Contains(po.Status))
+                {
+                    TempData["Error"] = "ไม่สามารถยกเลิก PO ที่ถูกยกเลิก/ปฏิเสธแล้วได้";
+                    return RedirectToAction("Detail", new { id });
+                }
+            }
+            else
+            {
+                // Non-admin: เฉพาะ Draft/Requested/Issued และต้องเป็น creator
+                var cancellable = new[] { POStatus.Draft, POStatus.Requested, POStatus.Issued };
+                bool isOwner = po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
+                if (!cancellable.Contains(po.Status) || !isOwner)
+                {
+                    TempData["Error"] = "ไม่มีสิทธิ์ยกเลิก PO นี้";
+                    return RedirectToAction("Detail", new { id });
+                }
             }
 
-            bool isOwner = po.RequesterSam.Equals(user.SamAcc, StringComparison.OrdinalIgnoreCase);
-            if (!isOwner && !isAdmin)
-            {
-                TempData["Error"] = "ไม่มีสิทธิ์ยกเลิก PO นี้";
-                return RedirectToAction("Detail", new { id });
-            }
-
-            var ok = await _poService.CancelPOAsync(id, user.SamAcc, user.FullName, remark);
+            var ok = await _poService.CancelPOAsync(id, user.SamAcc, user.FullName, remark, isAdmin);
             if (ok)
                 TempData["Warning"] = $"PO {po.PONumber} ถูกยกเลิกเรียบร้อยแล้ว";
             else
@@ -445,8 +476,33 @@ namespace BTITPORequest.Controllers
             var user = CurrentUser;
             var po = await _poService.GetPOByIdAsync(id);
             if (po == null) return NotFound();
-            await DoSubmitAsync(id, po.PONumber, user);
-            TempData["Success"] = "PO submitted & digitally signed.";
+
+            bool isRevision = po.Status == POStatus.UnderRevision;
+            await DoSubmitAsync(id, po.PONumber, user, isRevision: isRevision);
+
+            TempData["Success"] = isRevision
+                ? $"PO {po.PONumber} แก้ไขเรียบร้อยแล้ว (Rev.{po.RevisionNo})"
+                : "PO submitted & digitally signed.";
+            return RedirectToAction("Detail", new { id });
+        }
+
+        // ── REJECT EDIT (Admin Only) ─────────────────────────
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectEdit(int id, string? remark)
+        {
+            var user = CurrentUser;
+            if (user.Role != "Admin") return Forbid();
+
+            var po = await _poService.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+
+            var ok = await _poService.RejectEditPOAsync(id, user.SamAcc, user.FullName, remark);
+            if (ok)
+                TempData["Warning"] = $"PO {po.PONumber} ถูกส่งกลับให้แก้ไข (Rev.{po.RevisionNo + 1}) — Requester สามารถแก้ไขและ Re-Submit ได้";
+            else
+                TempData["Error"] = "เกิดข้อผิดพลาดในการส่งกลับ PO";
+
             return RedirectToAction("Detail", new { id });
         }
 
@@ -756,16 +812,21 @@ namespace BTITPORequest.Controllers
         }
 
         // ── PRIVATE: Do Submit → notify Issuer ───────────────
-        private async Task DoSubmitAsync(int poId, string poNumber, UserSessionModel user)
+        private async Task DoSubmitAsync(int poId, string poNumber, UserSessionModel user,
+            bool isRevision = false)
         {
             var signResult = await _signService.SignDataAsync(
-                poNumber, "Requested", user.SamAcc, user.FullName, user.Department);
+                poNumber, isRevision ? "ResubmitRevision" : "Requested",
+                user.SamAcc, user.FullName, user.Department);
             var sigImage = await GetOrFetchSignatureAsync(user);
             var title = user.Department;
 
             await _poService.SubmitPOAsync(poId, user.SamAcc,
                 user.FullName, title,
                 signResult?.SignatureBase64 ?? "", sigImage);
+
+            // Revision re-submit: กลับสถานะเดิมโดยตรง ไม่ส่งอีเมล Issuer ใหม่
+            if (isRevision) return;
 
             var po = await _poService.GetPOByIdAsync(poId);
             if (po == null) return;
@@ -786,7 +847,7 @@ namespace BTITPORequest.Controllers
                             po.GrandTotal.ToString("N2"), poId);
             }
 
-            // ── แจ้ง Requester ว่า PO ถูก Submit และกำลังรอ Issued ─
+            // แจ้ง Requester ว่า PO ถูก Submit และกำลังรอ Issued
             if (!string.IsNullOrEmpty(requesterEmail))
                 _ = _mail.NotifyRequesterSubmittedAsync(requesterEmail, po.PONumber,
                         po.VendorCompany, po.Subject, issuerName,

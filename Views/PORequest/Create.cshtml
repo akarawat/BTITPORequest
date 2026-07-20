@@ -327,7 +327,14 @@
                     </button>
                     <button type="submit" name="submitNow" value="true" class="btn btn-primary"
                             id="submitAndSignBtn">
-                        <i class="bi bi-send me-2"></i>Submit & Sign
+                        @if (Model.PO.Status == BTITPORequest.Models.POStatus.UnderRevision)
+                        {
+                            <i class="bi bi-arrow-repeat me-2"></i><text>Re-Submit &amp; Sign</text>
+                        }
+                        else
+                        {
+                            <i class="bi bi-send me-2"></i><text>Submit &amp; Sign</text>
+                        }
                     </button>
                     @if (isEdit)
                     {

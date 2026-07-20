@@ -222,13 +222,30 @@ namespace BTITPORequest.Services
             return rows > 0;
         }
 
-        public async Task<bool> CancelPOAsync(int poId, string cancelledBy, string cancelledByName, string? remark = null)
+        public async Task<bool> RejectEditPOAsync(int poId, string adminSam, string adminName, string? remark = null)
+        {
+            try
+            {
+                using var conn = _db.GetBTITReqConnection();
+                await conn.ExecuteAsync("ITPO_sp_RejectEditPO",
+                    new { POId = poId, AdminSam = adminSam, AdminName = adminName, Remark = remark },
+                    commandType: CommandType.StoredProcedure);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RejectEditPOAsync failed poId={poId}", poId);
+                return false;
+            }
+        }
+
+        public async Task<bool> CancelPOAsync(int poId, string cancelledBy, string cancelledByName, string? remark = null, bool isAdmin = false)
         {
             try
             {
                 using var conn = _db.GetBTITReqConnection();
                 await conn.ExecuteAsync("ITPO_sp_CancelPO",
-                    new { POId = poId, CancelledBy = cancelledBy, CancelledByName = cancelledByName, Remark = remark },
+                    new { POId = poId, CancelledBy = cancelledBy, CancelledByName = cancelledByName, Remark = remark, IsAdmin = isAdmin },
                     commandType: CommandType.StoredProcedure);
                 return true;
             }

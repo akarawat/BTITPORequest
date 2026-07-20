@@ -37,7 +37,8 @@ namespace BTITPORequest.Services.Interfaces
             string signatureBase64, string signatureImageBase64, string? remark);
         Task<bool> RejectPOAsync(int poId, int level,
             string approverSam, string approverName, string remark);
-        Task<bool> CancelPOAsync(int poId, string cancelledBy, string cancelledByName, string? remark = null);
+        Task<bool> CancelPOAsync(int poId, string cancelledBy, string cancelledByName, string? remark = null, bool isAdmin = false);
+        Task<bool> RejectEditPOAsync(int poId, string adminSam, string adminName, string? remark = null);
         Task<DashboardViewModel> GetDashboardDataAsync(
             string userSam, bool isAdmin, DateTime dateFrom, DateTime dateTo,
             string? deptCode = null);

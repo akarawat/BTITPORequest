@@ -20,6 +20,10 @@
         <div class="d-flex align-items-center gap-2">
             <h4 class="fw-bold mb-0">@Model.PONumber</h4>
             <span class="badge bg-@Model.StatusBadgeClass fs-6">@Model.StatusLabel</span>
+            @if (Model.RevisionNo > 0)
+            {
+                <span class="badge bg-secondary fs-6" title="Revision @Model.RevisionNo">Rev.@Model.RevisionNo</span>
+            }
         </div>
         <p class="text-muted mb-0" style="font-size:.85rem;">
             Created by @Model.RequesterName &bull; @Model.CreatedAt.ToString("dd MMM yyyy HH:mm")
@@ -34,6 +38,13 @@
             <a asp-action="Edit" asp-route-id="@Model.POId" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-pencil me-1"></i>Edit
             </a>
+        }
+        @if (Model.CanRejectEdit)
+        {
+            <button type="button" class="btn btn-outline-warning btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#rejectEditModal">
+                <i class="bi bi-pencil-square me-1"></i>Reject Edit
+            </button>
         }
         @if (Model.CanCancel)
         {
@@ -97,6 +108,20 @@
         }
     </div>
 </div>
+
+@if (Model.Status == POStatus.UnderRevision)
+{
+    <div class="alert alert-warning d-flex align-items-start gap-3 mb-3 border-warning border-2" role="alert">
+        <i class="bi bi-pencil-square fs-4 mt-1 flex-shrink-0 text-warning"></i>
+        <div>
+            <strong>PO อยู่ระหว่างแก้ไข (Revision @Model.RevisionNo)</strong><br>
+            <span style="font-size:.9rem;">
+                Admin ส่ง PO นี้กลับให้ Requester แก้ไข — กรุณาแก้ไขแล้ว Submit ใหม่
+                หลัง Re-Submit PO จะกลับสู่สถานะเดิมโดยอัตโนมัติ
+            </span>
+        </div>
+    </div>
+}
 
 <!-- Email Send Result Toast -->
 <div id="emailToast" class="toast align-items-center border-0 position-fixed bottom-0 end-0 m-3"
@@ -652,6 +677,50 @@
     </script>
 }
 
+@if (Model.CanRejectEdit)
+{
+    <!-- Reject Edit Modal -->
+    <div class="modal fade" id="rejectEditModal" tabindex="-1" aria-labelledby="rejectEditModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="RejectEdit" asp-route-id="@Model.POId" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-warning" id="rejectEditModalLabel">
+                            <i class="bi bi-pencil-square me-2"></i>Reject Edit — ส่งกลับให้แก้ไข
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning d-flex gap-2 align-items-center py-2" style="font-size:.88rem;">
+                            <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+                            <div>
+                                PO <strong>@Model.PONumber</strong> จะถูกส่งกลับให้ Requester แก้ไข
+                                (Rev.@(Model.RevisionNo + 1)) — PO Number ไม่เปลี่ยน
+                                หลัง Re-Submit จะกลับสู่สถานะ <strong>@Model.StatusLabel</strong> โดยอัตโนมัติ
+                            </div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold" style="font-size:.9rem;">
+                                เหตุผล / สิ่งที่ต้องแก้ไข <span class="text-danger">*</span>
+                            </label>
+                            <textarea name="remark" class="form-control" rows="3" required
+                                      placeholder="ระบุสิ่งที่ต้องแก้ไข เช่น VAT ผิด, Vendor Address ไม่ครบ ฯลฯ"
+                                      style="font-size:.88rem;"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">ปิด</button>
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil-square me-1"></i>ยืนยัน Reject Edit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
 @if (Model.CanCancel)
 {
     <!-- Cancel PO Modal -->
@@ -675,10 +744,26 @@
                                 <br>การยกเลิกนี้ไม่สามารถเปลี่ยนกลับได้
                             </div>
                         </div>
+                        @{
+                            bool _isAdminCancel = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin";
+                            bool _isAdvancedStatus = (int)Model.Status >= 4; // Authorized, Completed
+                        }
+                        @if (_isAdminCancel && _isAdvancedStatus)
+                        {
+                            <div class="alert alert-danger d-flex gap-2 align-items-center py-2 mb-3" style="font-size:.88rem;">
+                                <i class="bi bi-shield-exclamation flex-shrink-0"></i>
+                                <div>
+                                    <strong>Admin Override</strong> — PO นี้ผ่านการอนุมัติแล้ว
+                                    กรุณาระบุเหตุผลให้ชัดเจน เช่น <em>PO ซ้ำกับ @Model.PONumber</em>
+                                </div>
+                            </div>
+                        }
                         <div class="mb-0">
-                            <label class="form-label fw-semibold" style="font-size:.9rem;">เหตุผลการยกเลิก <span class="text-muted fw-normal">(ไม่บังคับ)</span></label>
-                            <textarea name="remark" class="form-control" rows="3"
-                                      placeholder="ระบุเหตุผล เช่น เปลี่ยนแผน, ข้อมูลผิดพลาด ฯลฯ"
+                            <label class="form-label fw-semibold" style="font-size:.9rem;">
+                                เหตุผลการยกเลิก <span class="text-danger">*</span>
+                            </label>
+                            <textarea name="remark" class="form-control" rows="3" required
+                                      placeholder="ระบุเหตุผล เช่น PO ซ้ำกับเลขที่ IT-26-000055, เปลี่ยนแผน ฯลฯ"
                                       style="font-size:.88rem;"></textarea>
                         </div>
                     </div>
