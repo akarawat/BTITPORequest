@@ -60,6 +60,7 @@ namespace BTITPORequest.Models
         public string   RequesterName { get; set; } = string.Empty;
         public string   SupplierCompany { get; set; } = string.Empty;
         public decimal  GrandTotal    { get; set; }
+        public int?     LinkedDeptId  { get; set; }
         public string   LinkedDeptName { get; set; } = string.Empty;
         public string?  LinkedPONumber { get; set; }
         public string?  ClosedBy      { get; set; }

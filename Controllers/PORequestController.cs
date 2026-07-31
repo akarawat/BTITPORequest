@@ -94,6 +94,25 @@ namespace BTITPORequest.Controllers
             var closedListTask = _poService.GetClosedPRsAsync();
             await Task.WhenAll(prListTask, closedListTask);
 
+            // กรอง PRList ตาม Role ของ Admin
+            //   ITAdmin     → เห็นเฉพาะ LinkedDeptId = 1 (IT Equipment)
+            //   OfficeAdmin → เห็นเฉพาะ LinkedDeptId = 2 (Office Stationary)
+            //   Admin       → เห็นทั้งหมด
+            var role       = CurrentUser.Role;
+            var prList     = prListTask.Result;
+            var closedList = closedListTask.Result;
+
+            if (role == "ITAdmin")
+            {
+                prList     = prList.Where(p => p.LinkedDeptId == 1).ToList();
+                closedList = closedList.Where(p => p.LinkedDeptId == 1).ToList();
+            }
+            else if (role == "OfficeAdmin")
+            {
+                prList     = prList.Where(p => p.LinkedDeptId == 2).ToList();
+                closedList = closedList.Where(p => p.LinkedDeptId == 2).ToList();
+            }
+
             ViewData["Title"] = "New PO from PR";
             ViewData["BreadcrumbItems"] = new List<(string Label, string? Url)>
             {
@@ -103,8 +122,8 @@ namespace BTITPORequest.Controllers
             };
             return View(new CreateFromPRViewModel
             {
-                PRList       = prListTask.Result,
-                ClosedPRList = closedListTask.Result
+                PRList       = prList,
+                ClosedPRList = closedList
             });
         }
 

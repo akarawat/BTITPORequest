@@ -3,7 +3,9 @@
     ViewData["Title"] = "New PO from PR";
     ViewData["BreadcrumbItems"] = ViewData["BreadcrumbItems"]
         ?? new List<(string, string?)> { ("Dashboard", "/"), ("PO Requests", "/PORequest"), ("New PO from PR", null) };
-    bool isAdminView = User.IsInRole("Admin");
+    var  _role       = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "User";
+    bool isAdminView = _role is "Admin" or "ITAdmin" or "OfficeAdmin";
+    var  _prReqBaseUrl = "https://it_prrequest.berninathailand.com";
 }
 
 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -163,19 +165,27 @@ else
                                         @pr.UpdatedAt.ToString("dd/MM/yy HH:mm")
                                     </td>
                                     <td class="text-center" onclick="event.stopPropagation()">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-info btn-send-pr-email"
-                                                title="Send Email to Requester"
-                                                data-pr-id="@pr.PRId"
-                                                data-pr-number="@pr.PRNumber"
-                                                data-pr-subject="@pr.ReasonToOrder"
-                                                data-pr-vendor="@pr.SupplierCompany"
-                                                data-pr-total="@pr.GrandTotal.ToString("N2")"
-                                                data-pr-dept="@pr.LinkedDeptName"
-                                                data-pr-requester="@pr.RequesterName"
-                                                data-pr-sam="@pr.RequesterSam">
-                                            <i class="bi bi-envelope"></i>
-                                        </button>
+                                        <div class="d-flex gap-1 justify-content-center">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-info btn-send-pr-email"
+                                                    title="Send Email to Requester"
+                                                    data-pr-id="@pr.PRId"
+                                                    data-pr-number="@pr.PRNumber"
+                                                    data-pr-subject="@pr.ReasonToOrder"
+                                                    data-pr-vendor="@pr.SupplierCompany"
+                                                    data-pr-total="@pr.GrandTotal.ToString("N2")"
+                                                    data-pr-dept="@pr.LinkedDeptName"
+                                                    data-pr-requester="@pr.RequesterName"
+                                                    data-pr-sam="@pr.RequesterSam">
+                                                <i class="bi bi-envelope"></i>
+                                            </button>
+                                            <a href="@(_prReqBaseUrl)/PRRequest/DownloadPdf/@pr.PRId"
+                                               target="_blank"
+                                               class="btn btn-sm btn-outline-danger"
+                                               title="Download PR PDF — @pr.PRNumber">
+                                                <i class="bi bi-file-earmark-pdf"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                     @if (isAdminView)
                                     {
