@@ -36,13 +36,16 @@ namespace BTITPORequest.Services
         }
 
         // ── Thai-capable font loader ────────────────────────────
-        // HELVETICA รองรับแค่ Latin — ถ้า vendor มีภาษาไทย จะไม่แสดง
-        // ใช้ Tahoma (มีใน Windows ทุกเครื่อง, รองรับไทย) แทน
-        private static readonly string[] FontPathsRegular = {
+        // Priority: 1) Sarabun (bundled in wwwroot/fonts/) → 2) Tahoma/Arial (Windows) → 3) Helvetica fallback
+        private static string[] GetFontPathsRegular() => new[]
+        {
+            System.IO.Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "fonts", "Sarabun-Regular.ttf"),
             @"C:\Windows\Fonts\tahoma.ttf",
             @"C:\Windows\Fonts\arial.ttf",
         };
-        private static readonly string[] FontPathsBold = {
+        private static string[] GetFontPathsBold() => new[]
+        {
+            System.IO.Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "fonts", "Sarabun-Bold.ttf"),
             @"C:\Windows\Fonts\tahomabd.ttf",
             @"C:\Windows\Fonts\arialbd.ttf",
         };
@@ -53,7 +56,7 @@ namespace BTITPORequest.Services
             {
                 if (System.IO.File.Exists(p))
                     return PdfFontFactory.CreateFont(p, PdfEncodings.IDENTITY_H,
-                           PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+                           PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
             }
             return PdfFontFactory.CreateFont(fallback);
         }
@@ -89,9 +92,8 @@ namespace BTITPORequest.Services
             // Margin: บน 2.2cm (รูปหัว ~1.7cm + gap), ล่าง 2.5cm (รูปท้าย ~1.5cm + gap)
             doc.SetMargins(62f, 30f, 72f, 30f);
 
-            // ใช้ Tahoma (รองรับภาษาไทย) แทน Helvetica
-            var fontR = LoadThaiFont(FontPathsRegular, StandardFonts.HELVETICA);
-            var fontB = LoadThaiFont(FontPathsBold, StandardFonts.HELVETICA_BOLD);
+            var fontR = LoadThaiFont(GetFontPathsRegular(), StandardFonts.HELVETICA);
+            var fontB = LoadThaiFont(GetFontPathsBold(), StandardFonts.HELVETICA_BOLD);
 
             // ── Header & Footer images via Page Event ─────────────
             var imgLogoPath = System.IO.Path.Combine(
@@ -177,8 +179,20 @@ namespace BTITPORequest.Services
                 tbl.AddHeaderCell(new Cell().SetBackgroundColor(ColorHeader).SetBorder(Border.NO_BORDER)
                     .Add(new Paragraph(h).SetFont(fontB).SetFontSize(9).SetFontColor(ColorHeaderText).SetTextAlignment(TextAlignment.CENTER)));
 
+            // รวมรายการที่มี Description เดียวกัน (กรณีสร้าง PO จาก PR หลายใบที่มีสินค้าซ้ำกัน)
+            var mergedItems = po.LineItems
+                .GroupBy(i => i.Description.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select((g, idx) => (
+                    LineNo:      idx + 1,
+                    Description: g.Key,
+                    Quantity:    g.Sum(i => i.Quantity),
+                    UnitPrice:   g.First().UnitPrice,
+                    Amount:      g.Sum(i => i.Amount)
+                ))
+                .ToList();
+
             bool alt = false;
-            foreach (var item in po.LineItems)
+            foreach (var item in mergedItems)
             {
                 var bg = alt ? ColorRowAlt : null;
                 void AddCell(string val, bool right = false)
@@ -237,7 +251,7 @@ namespace BTITPORequest.Services
             var sigTable = new Table(UnitValue.CreatePercentArray(new float[] { 25, 25, 25, 25 }))
                 .UseAllAvailableWidth().SetMarginTop(12);
 
-            void SigCell(string role, string name, string titleStr, string signBase64, string sigImgBase64)
+            void SigCell(string role, string name, string titleStr, string signBase64, string sigImgBase64, DateTime? date = null)
             {
                 var cell = new Cell().SetBorder(Border.NO_BORDER).SetTextAlignment(TextAlignment.CENTER).SetPaddingTop(4);
                 cell.Add(new Paragraph(role).SetFont(fontB).SetFontSize(8).SetMarginBottom(6));
@@ -269,18 +283,24 @@ namespace BTITPORequest.Services
 
                 cell.Add(new Paragraph(name).SetFont(fontB).SetFontSize(8));
                 cell.Add(new Paragraph(titleStr).SetFont(fontR).SetFontSize(7));
+                if (date.HasValue)
+                    cell.Add(new Paragraph("Date: " + date.Value.ToString("dd/MM/yyyy"))
+                        .SetFont(fontR).SetFontSize(7));
                 sigTable.AddCell(cell);
             }
 
             SigCell("For Supplier\nSign & Feedback", "", "", "", "");
             SigCell("Requested:", po.RequesterName, po.RequesterTitle,
-                po.RequesterSignatureBase64, po.RequesterSignatureImage);
+                po.RequesterSignatureBase64, po.RequesterSignatureImage,
+                po.RequestedDate);
             SigCell("Issued:", po.IssuerName, po.IssuerTitle,
-                po.IssuerSignatureBase64, po.IssuerSignatureImage);
+                po.IssuerSignatureBase64, po.IssuerSignatureImage,
+                po.IssuedDate);
             SigCell("Authorized:", !string.IsNullOrEmpty(po.Approver2Name) ? po.Approver2Name : po.Approver1Name ?? "",
                 !string.IsNullOrEmpty(po.Approver2Title) ? po.Approver2Title : po.Approver1Title ?? "",
                 !string.IsNullOrEmpty(po.Approver2SignatureBase64) ? po.Approver2SignatureBase64 : po.Approver1SignatureBase64 ?? "",
-                !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "");
+                !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "",
+                po.Approver2Date ?? po.Approver1Date);
 
             doc.Add(sigTable);
             // Footer image วาดโดย LetterheadPageEvent อัตโนมัติทุกหน้า
@@ -347,9 +367,8 @@ namespace BTITPORequest.Services
             // 1 cm = 28.35 pt
             doc.SetMargins(70.9f, 28.35f, 70.9f, 42.5f);
 
-            // ใช้ Tahoma (รองรับภาษาไทย) แทน Helvetica
-            var fontR = LoadThaiFont(FontPathsRegular, StandardFonts.HELVETICA);
-            var fontB = LoadThaiFont(FontPathsBold, StandardFonts.HELVETICA_BOLD);
+            var fontR = LoadThaiFont(GetFontPathsRegular(), StandardFonts.HELVETICA);
+            var fontB = LoadThaiFont(GetFontPathsBold(), StandardFonts.HELVETICA_BOLD);
 
             // ── PO Number + Date ──────────────────────────────
             var titleTable = new Table(UnitValue.CreatePercentArray(new float[] { 50, 50 }))
@@ -459,8 +478,20 @@ namespace BTITPORequest.Services
             AddHeader("#"); AddHeader("Description"); AddHeader("Quantity");
             AddHeader("Unit Price"); AddHeader("Amount/Baht");
 
+            // รวมรายการที่มี Description เดียวกัน (กรณีสร้าง PO จาก PR หลายใบที่มีสินค้าซ้ำกัน)
+            var mergedItemsPrint = po.LineItems
+                .GroupBy(i => i.Description.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select((g, idx) => (
+                    LineNo:      idx + 1,
+                    Description: g.Key,
+                    Quantity:    g.Sum(i => i.Quantity),
+                    UnitPrice:   g.First().UnitPrice,
+                    Amount:      g.Sum(i => i.Amount)
+                ))
+                .ToList();
+
             bool alt = false;
-            foreach (var item in po.LineItems)
+            foreach (var item in mergedItemsPrint)
             {
                 var bg = alt ? ColorRowAlt : null;
                 void AddCell(string v, bool right = false)
@@ -521,7 +552,7 @@ namespace BTITPORequest.Services
             var sigTable = new Table(UnitValue.CreatePercentArray(new float[] { 25, 25, 25, 25 }))
                 .UseAllAvailableWidth().SetMarginTop(10);
 
-            void SigCellPrint(string role, string name, string titleStr, string sigImgBase64)
+            void SigCellPrint(string role, string name, string titleStr, string sigImgBase64, DateTime? date = null)
             {
                 var cell = new Cell().SetBorder(Border.NO_BORDER)
                     .SetTextAlignment(TextAlignment.CENTER).SetPaddingTop(4);
@@ -559,16 +590,23 @@ namespace BTITPORequest.Services
                     if (!string.IsNullOrEmpty(titleStr))
                         cell.Add(new Paragraph(titleStr).SetFont(fontR).SetFontSize(7)
                             .SetFontColor(new DeviceRgb(0x55, 0x55, 0x55)));
+                    if (date.HasValue)
+                        cell.Add(new Paragraph("Date: " + date.Value.ToString("dd/MM/yyyy"))
+                            .SetFont(fontR).SetFontSize(7)
+                            .SetFontColor(new DeviceRgb(0x55, 0x55, 0x55)));
                 }
                 sigTable.AddCell(cell);
             }
 
             SigCellPrint("For Supplier\nSign & Feedback", "", "", "");
-            SigCellPrint("Requested:", po.RequesterName, po.RequesterTitle, po.RequesterSignatureImage);
-            SigCellPrint("Issued:", po.IssuerName, po.IssuerTitle, po.IssuerSignatureImage);
+            SigCellPrint("Requested:", po.RequesterName, po.RequesterTitle, po.RequesterSignatureImage,
+                po.RequestedDate);
+            SigCellPrint("Issued:", po.IssuerName, po.IssuerTitle, po.IssuerSignatureImage,
+                po.IssuedDate);
             SigCellPrint("Authorized:", !string.IsNullOrEmpty(po.Approver2Name) ? po.Approver2Name : po.Approver1Name ?? "",
                 !string.IsNullOrEmpty(po.Approver2Title) ? po.Approver2Title : po.Approver1Title ?? "",
-                !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "");
+                !string.IsNullOrEmpty(po.Approver2SignatureImage) ? po.Approver2SignatureImage : po.Approver1SignatureImage ?? "",
+                po.Approver2Date ?? po.Approver1Date);
 
             doc.Add(sigTable);
             doc.Close();
@@ -585,28 +623,23 @@ public class LetterheadPageEvent : IEventHandler
     private readonly string _logoPath;
     private readonly string _swissLogoPath;
 
-    private static readonly string[] ThaiRegularPaths = {
-        @"C:\Windows\Fonts\tahoma.ttf",
-        @"C:\Windows\Fonts\arial.ttf",
-    };
-    private static readonly string[] ThaiBoldPaths = {
-        @"C:\Windows\Fonts\tahomabd.ttf",
-        @"C:\Windows\Fonts\arialbd.ttf",
-    };
-
     public LetterheadPageEvent(string logoPath, string swissLogoPath)
     {
         _logoPath = logoPath;
         _swissLogoPath = swissLogoPath;
     }
 
-    private static PdfFont LoadFont(string[] paths)
+    private static PdfFont LoadFont(bool bold)
     {
+        var webRoot = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "fonts");
+        var paths = bold
+            ? new[] { System.IO.Path.Combine(webRoot, "Sarabun-Bold.ttf"),    @"C:\Windows\Fonts\tahomabd.ttf", @"C:\Windows\Fonts\arialbd.ttf" }
+            : new[] { System.IO.Path.Combine(webRoot, "Sarabun-Regular.ttf"), @"C:\Windows\Fonts\tahoma.ttf",   @"C:\Windows\Fonts\arial.ttf"   };
         foreach (var p in paths)
             if (System.IO.File.Exists(p))
                 return PdfFontFactory.CreateFont(p, PdfEncodings.IDENTITY_H,
-                       PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
-        return PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+                       PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+        return PdfFontFactory.CreateFont(bold ? StandardFonts.HELVETICA_BOLD : StandardFonts.HELVETICA);
     }
 
     public void HandleEvent(Event @event)
@@ -663,8 +696,8 @@ public class LetterheadPageEvent : IEventHandler
         // ── Footer: company info text (left) ─────────────────────
         try
         {
-            var fontR = LoadFont(ThaiRegularPaths);
-            var fontB = LoadFont(ThaiBoldPaths);
+            var fontR = LoadFont(bold: false);
+            var fontB = LoadFont(bold: true);
             var darkGray = new DeviceRgb(0x33, 0x33, 0x33);
             var black    = new DeviceRgb(0x00, 0x00, 0x00);
 

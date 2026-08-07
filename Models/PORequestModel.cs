@@ -191,6 +191,11 @@ namespace BTITPORequest.Models
         public string SelectedApprover1Sam { get; set; } = string.Empty;
         public string SelectedApprover2Sam { get; set; } = string.Empty;
 
+        // Admin override — เลือก Requester แทน logged-in user (ใช้ใน CreateFromPR flow เท่านั้น)
+        public string SelectedRequesterSam { get; set; } = string.Empty;
+        /// <summary>true = มาจาก CreateFromPR flow → แสดง Requester dropdown ให้ Admin เลือกได้</summary>
+        public bool IsFromPR { get; set; } = false;
+
         // Dropdown options — loaded from HR (free assign, ไม่จำกัด role)
         public List<HRUserModel> Issuers { get; set; } = new();
         public List<HRUserModel> Approvers { get; set; } = new();

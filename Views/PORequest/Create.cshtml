@@ -34,6 +34,8 @@
     {
         <input type="hidden" name="sourcePRIds" value="@prId" />
     }
+    @* IsFromPR flag — Admin เลือก Requester เองได้ใน CreateFromPR flow *@
+    <input type="hidden" name="isFromPR" value="@Model.IsFromPR.ToString().ToLower()" />
 
     <div class="row g-3">
         <!-- Left column: Vendor & Header -->
@@ -276,6 +278,25 @@
                         var _hrEmployees = @Html.Raw(empJson);
                     </script>
 
+                    @* ── Requester (Admin override — แสดงเฉพาะ CreateFromPR flow) ─── *@
+                    @if (Model.IsFromPR)
+                    {
+                        <div class="mb-3 p-3 rounded border border-warning-subtle bg-warning-subtle">
+                            <label class="form-label fw-semibold">
+                                <span class="badge bg-warning text-dark me-1">Requested</span>
+                                ผู้ขอซื้อ (User Request)
+                            </label>
+                            <input type="hidden" id="selectedRequesterSam" name="selectedRequesterSam"
+                                   value="@Model.SelectedRequesterSam" />
+                            <input type="text" id="requesterSearch" class="form-control" autocomplete="off"
+                                   placeholder="พิมพ์ชื่อเพื่อค้นหา..." style="font-size:.85rem;">
+                            <div id="requesterDropdown" class="list-group position-absolute z-3 shadow-sm d-none"
+                                 style="max-height:200px;overflow-y:auto;min-width:260px;"></div>
+                            <div id="requesterDisplay" class="mt-1 small text-warning-emphasis fw-semibold"></div>
+                            <div class="form-text">Admin สามารถเปลี่ยน User Request ได้ — ระบบจะส่งอีเมลแจ้งผู้ที่เลือก</div>
+                        </div>
+                    }
+
                     <!-- Issued by -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">
@@ -431,6 +452,10 @@
             });
         }
 
+        @if (Model.IsFromPR)
+        {
+            <text>initPersonSearch('requesterSearch', 'requesterDropdown', 'selectedRequesterSam', 'requesterDisplay', '@Model.SelectedRequesterSam');</text>
+        }
         initPersonSearch('issuerSearch',   'issuerDropdown',   'selectedIssuerSam',    'issuerDisplay',   '@Model.SelectedIssuerSam');
         initPersonSearch('approverSearch', 'approverDropdown', 'selectedApprover1Sam', 'approverDisplay', '@Model.SelectedApprover1Sam');
     </script>

@@ -230,13 +230,16 @@ namespace BTITPORequest.Controllers
                     VendorFax     = firstPR.SupplierFax,
                     VendorAddress = string.Empty
                 },
-                DeptPrefix      = autoDeptPrefix,
-                LineItems       = poLineItems,
-                CurrentUserSam  = user.SamAcc,
-                CurrentUserName = user.FullName,
-                Issuers         = allEmployees,
-                Approvers       = allEmployees,
-                SourcePRIds     = idList
+                DeptPrefix           = autoDeptPrefix,
+                LineItems            = poLineItems,
+                CurrentUserSam       = user.SamAcc,
+                CurrentUserName      = user.FullName,
+                Issuers              = allEmployees,
+                Approvers            = allEmployees,
+                SourcePRIds          = idList,
+                // Admin สามารถเลือก Requester เองได้ — pre-fill จาก PR requester
+                IsFromPR             = true,
+                SelectedRequesterSam = firstPR.RequesterSam
             };
 
             var title = prs.Count == 1
@@ -266,13 +269,20 @@ namespace BTITPORequest.Controllers
             [FromForm] string selectedApprover2Sam = "",
             [FromForm] bool submitNow = false,
             [FromForm] string deptPrefix = "IT",
-            [FromForm] List<int>? sourcePRIds = null)
+            [FromForm] List<int>? sourcePRIds = null,
+            [FromForm] string selectedRequesterSam = "",
+            [FromForm] bool isFromPR = false)
         {
             // Validate prefix
             if (deptPrefix != "IT" && deptPrefix != "OS") deptPrefix = "IT";
 
             var user = CurrentUser;
             var lineItems = JsonConvert.DeserializeObject<List<POLineItemModel>>(lineItemsJson ?? "[]") ?? new();
+
+            // ── Admin override requester (CreateFromPR flow เท่านั้น) ──
+            bool isAdmin = user.Role is "Admin" or "ITAdmin" or "OfficeAdmin";
+            string actualRequesterSam = (isFromPR && isAdmin && !string.IsNullOrWhiteSpace(selectedRequesterSam))
+                ? selectedRequesterSam : user.SamAcc;
 
             if (lineItems.Count == 0)
             {
@@ -282,18 +292,20 @@ namespace BTITPORequest.Controllers
                 {
                     PO = po,
                     DeptPrefix = deptPrefix,
-                    CurrentUserSam  = user.SamAcc,
-                    CurrentUserName = user.FullName,
-                    Issuers   = allEmployees,
-                    Approvers = allEmployees,
+                    CurrentUserSam       = user.SamAcc,
+                    CurrentUserName      = user.FullName,
+                    Issuers              = allEmployees,
+                    Approvers            = allEmployees,
                     SelectedIssuerSam    = selectedIssuerSam,
                     SelectedApprover1Sam = selectedApprover1Sam,
-                    SelectedApprover2Sam = selectedApprover2Sam
+                    SelectedApprover2Sam = selectedApprover2Sam,
+                    SelectedRequesterSam = selectedRequesterSam,
+                    IsFromPR             = isFromPR
                 });
             }
 
             RecalcTotals(po, lineItems);
-            var poId = await _poService.CreatePOAsync(po, lineItems, user.SamAcc,
+            var poId = await _poService.CreatePOAsync(po, lineItems, actualRequesterSam,
                 selectedIssuerSam, selectedApprover1Sam, selectedApprover2Sam,
                 requesterDeptCode: user.DeptCode, deptPrefix: deptPrefix);
 
@@ -850,7 +862,9 @@ namespace BTITPORequest.Controllers
             var po = await _poService.GetPOByIdAsync(poId);
             if (po == null) return;
 
-            var requesterEmail = await GetEmailBysamAccAsync(user.SamAcc);
+            // ใช้ RequesterSam จาก PO (อาจต่างจาก user.SamAcc เมื่อ Admin สร้างแทน user อื่น)
+            var requesterEmail = await GetEmailBysamAccAsync(
+                !string.IsNullOrEmpty(po.RequesterSam) ? po.RequesterSam : user.SamAcc);
             var issuerName = string.Empty;
 
             if (!string.IsNullOrEmpty(po.PreAssignedIssuerSam))
