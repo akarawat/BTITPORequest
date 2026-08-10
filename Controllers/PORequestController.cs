@@ -937,6 +937,30 @@ namespace BTITPORequest.Controllers
             return Json(new { email });
         }
 
+        // ── GET PR Line Items (for CreateFromPR expand row) ───
+        [HttpGet]
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> GetPRItems(int prId)
+        {
+            try
+            {
+                var (_, items) = await _poService.GetPRDetailForPOAsync(prId);
+                return Json(new
+                {
+                    success = true,
+                    items = items.Select(i => new {
+                        i.LineNo, i.BTNumber, i.Description, i.BrandModel,
+                        i.Quantity, i.Unit, i.UnitPrice, i.Amount
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPRItems failed for PRId={prId}", prId);
+                return Json(new { success = false, message = "ไม่สามารถโหลดรายการได้" });
+            }
+        }
+
         // ── SEND QUICK EMAIL (Admin / PO owner) ───────────────
         [HttpPost]
         [IgnoreAntiforgeryToken]

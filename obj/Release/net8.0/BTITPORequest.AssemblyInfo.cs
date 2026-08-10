@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BTITPORequest")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8a65219b7e5b6a37ef2632b4c48e22e39db6152e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e0e7e0de8a941c0340bd6ba1a5616b3d29098e16")]
 [assembly: System.Reflection.AssemblyProductAttribute("BTITPORequest")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BTITPORequest")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

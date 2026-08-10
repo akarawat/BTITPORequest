@@ -180,8 +180,18 @@ namespace BTITPORequest.Services
                     .Add(new Paragraph(h).SetFont(fontB).SetFontSize(9).SetFontColor(ColorHeaderText).SetTextAlignment(TextAlignment.CENTER)));
 
             // รวมรายการที่มี Description เดียวกัน (กรณีสร้าง PO จาก PR หลายใบที่มีสินค้าซ้ำกัน)
+            // strip prefix [BTPRxxxxxx] ออกก่อน group เพื่อให้ "[BTPR260020] ปากกา..." == "ปากกา..."
+            static string StripPrPrefix(string desc)
+            {
+                var s = System.Text.RegularExpressions.Regex.Replace(
+                    desc.Trim(), @"^\[BTPR\d+\]\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                s = System.Text.RegularExpressions.Regex.Replace(
+                    s, @"\s*\(S-\d+\)\s*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return s.Trim();
+            }
+
             var mergedItems = po.LineItems
-                .GroupBy(i => i.Description.Trim(), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(i => StripPrPrefix(i.Description), StringComparer.OrdinalIgnoreCase)
                 .Select((g, idx) => (
                     LineNo:      idx + 1,
                     Description: g.Key,
@@ -479,8 +489,18 @@ namespace BTITPORequest.Services
             AddHeader("Unit Price"); AddHeader("Amount/Baht");
 
             // รวมรายการที่มี Description เดียวกัน (กรณีสร้าง PO จาก PR หลายใบที่มีสินค้าซ้ำกัน)
+            // strip prefix [BTPRxxxxxx] ออกก่อน group เพื่อให้ "[BTPR260020] ปากกา..." == "ปากกา..."
+            static string StripPrPrefixP(string desc)
+            {
+                var s = System.Text.RegularExpressions.Regex.Replace(
+                    desc.Trim(), @"^\[BTPR\d+\]\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                s = System.Text.RegularExpressions.Regex.Replace(
+                    s, @"\s*\(S-\d+\)\s*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return s.Trim();
+            }
+
             var mergedItemsPrint = po.LineItems
-                .GroupBy(i => i.Description.Trim(), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(i => StripPrPrefixP(i.Description), StringComparer.OrdinalIgnoreCase)
                 .Select((g, idx) => (
                     LineNo:      idx + 1,
                     Description: g.Key,

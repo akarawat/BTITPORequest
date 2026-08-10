@@ -114,8 +114,8 @@ else
                                     data-search="@pr.PRNumber @pr.ReasonToOrder @pr.SupplierCompany @pr.LinkedDeptName"
                                     data-dept-id="@(pr.LinkedDeptId ?? 0)"
                                     data-pr-id="@pr.PRId"
-                                    style="cursor:@(pr.HasLinkedPO ? "default" : "pointer");"
-                                    @(pr.HasLinkedPO ? "" : "onclick=\"toggleRow(this)\"")>
+                                    style="cursor:pointer;"
+                                    onclick="togglePRDetail(event, @pr.PRId)">
                                     <td onclick="event.stopPropagation()">
                                         @if (pr.HasLinkedPO)
                                         {
@@ -199,6 +199,16 @@ else
                                         </td>
                                     }
                                 </tr>
+                                @* ── Expandable detail row ── *@
+                                <tr id="pr-detail-@pr.PRId" style="display:none;">
+                                    <td colspan="@(isAdminView ? 9 : 8)" class="p-0">
+                                        <div class="bg-light border-top px-4 py-3">
+                                            <div id="pr-detail-body-@pr.PRId" class="text-muted small text-center py-1">
+                                                <span class="spinner-border spinner-border-sm me-1"></span>กำลังโหลด...
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
                             }
                         </tbody>
                     </table>
@@ -256,7 +266,7 @@ else
                         <tbody>
                             @foreach (var pr in Model.ClosedPRList)
                             {
-                                <tr>
+                                <tr style="cursor:pointer;" onclick="togglePRDetail(event, @pr.PRId)">
                                     <td>
                                         <span class="fw-semibold text-secondary" style="font-size:.85rem;">@pr.PRNumber</span>
                                     </td>
@@ -308,6 +318,16 @@ else
                                     </td>
                                     <td class="text-muted" style="font-size:.78rem;">
                                         @(pr.ClosedDate.HasValue ? pr.ClosedDate.Value.ToString("dd/MM/yy HH:mm") : "—")
+                                    </td>
+                                </tr>
+                                @* ── Expandable detail row ── *@
+                                <tr id="pr-detail-@pr.PRId" style="display:none;">
+                                    <td colspan="8" class="p-0">
+                                        <div class="bg-light border-top px-4 py-3">
+                                            <div id="pr-detail-body-@pr.PRId" class="text-muted small text-center py-1">
+                                                <span class="spinner-border spinner-border-sm me-1"></span>กำลังโหลด...
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -449,6 +469,68 @@ else
 
 @section Scripts {
     <script>
+        // ── Expand / Collapse PR detail row ──────────────────
+        var _prDetailLoaded = {};
+
+        function togglePRDetail(evt, prId) {
+            // ไม่ expand ถ้ากด checkbox, button หรือ link
+            if (evt.target.closest('input,button,a')) return;
+
+            var detailRow = document.getElementById('pr-detail-' + prId);
+            if (!detailRow) return;
+
+            var isOpen = detailRow.style.display !== 'none';
+            if (isOpen) { detailRow.style.display = 'none'; return; }
+            detailRow.style.display = '';
+
+            // โหลดแล้ว — แสดงเลย
+            if (_prDetailLoaded[prId]) return;
+
+            var fmt = function(n, d) {
+                return parseFloat(n).toLocaleString('th-TH', {minimumFractionDigits: d, maximumFractionDigits: d});
+            };
+
+            fetch('/PORequest/GetPRItems?prId=' + prId)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    _prDetailLoaded[prId] = true;
+                    var body = document.getElementById('pr-detail-body-' + prId);
+                    if (!body) return;
+                    if (!data.success || !data.items || data.items.length === 0) {
+                        body.innerHTML = '<div class="text-muted small text-center py-2">ไม่มีรายการสินค้า</div>';
+                        return;
+                    }
+                    var rows = data.items.map(function(item) {
+                        return '<tr>' +
+                            '<td class="text-muted" style="width:36px;font-size:.8rem;">' + item.lineNo + '</td>' +
+                            '<td style="font-size:.82rem;text-align:left;">' +
+                                item.description +
+                                (item.btNumber ? ' <span class="text-muted" style="font-size:.75rem;">(' + item.btNumber + ')</span>' : '') +
+                                (item.brandModel ? ' <span class="text-muted" style="font-size:.75rem;">— ' + item.brandModel + '</span>' : '') +
+                            '</td>' +
+                            '<td class="text-end" style="width:110px;font-size:.82rem;">' + fmt(item.quantity, 3) + ' ' + (item.unit || '') + '</td>' +
+                            '<td class="text-end" style="width:90px;font-size:.82rem;">' + fmt(item.unitPrice, 2) + '</td>' +
+                            '<td class="text-end fw-semibold" style="width:100px;font-size:.82rem;">' + fmt(item.amount, 2) + '</td>' +
+                            '</tr>';
+                    }).join('');
+                    body.innerHTML =
+                        '<table class="table table-sm table-borderless mb-0">' +
+                        '<thead><tr class="border-bottom text-muted" style="font-size:.78rem;">' +
+                        '<th style="width:36px;">#</th>' +
+                        '<th>Description</th>' +
+                        '<th class="text-end" style="width:110px;">Quantity</th>' +
+                        '<th class="text-end" style="width:90px;">Unit Price</th>' +
+                        '<th class="text-end" style="width:100px;">Amount (THB)</th>' +
+                        '</tr></thead>' +
+                        '<tbody>' + rows + '</tbody>' +
+                        '</table>';
+                })
+                .catch(function() {
+                    var body = document.getElementById('pr-detail-body-' + prId);
+                    if (body) body.innerHTML = '<div class="text-danger small text-center py-2"><i class="bi bi-exclamation-triangle me-1"></i>โหลดข้อมูลไม่สำเร็จ</div>';
+                });
+        }
+
         // ── Data from server ──────────────────────────────────
         var _prData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.PRList.Select(p => new {
             prId        = p.PRId,
