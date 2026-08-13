@@ -856,8 +856,8 @@ namespace BTITPORequest.Controllers
                 user.FullName, title,
                 signResult?.SignatureBase64 ?? "", sigImage);
 
-            // Revision re-submit: กลับสถานะเดิมโดยตรง ไม่ส่งอีเมล Issuer ใหม่
-            if (isRevision) return;
+            // Revision re-submit: SP reset flow → Requested + ล้าง Issuer/Approver signature
+            // ส่ง email Issuer ใหม่เหมือน submit ปกติ เพื่อให้เซ็นบนเนื้อหาที่แก้ไขแล้ว
 
             var po = await _poService.GetPOByIdAsync(poId);
             if (po == null) return;

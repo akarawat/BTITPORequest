@@ -227,10 +227,8 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">VAT %</label>
-                        <select asp-for="PO.VatPercent" class="form-select" id="vatSelect">
-                            <option value="0">0% (Exempt)</option>
-                            <option value="7">7%</option>
-                        </select>
+                        <div class="form-control-plaintext fw-semibold">7%</div>
+                        <input type="hidden" asp-for="PO.VatPercent" id="vatSelect" value="7" />
                     </div>
                     <hr />
                     <div class="d-flex justify-content-between mb-1">
