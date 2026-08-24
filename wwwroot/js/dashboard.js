@@ -53,6 +53,7 @@ function initDashboardCharts(dailyData, monthlyData, chartYear) {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         position: 'top',
@@ -141,6 +142,7 @@ function initDashboardCharts(dailyData, monthlyData, chartYear) {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         position: legendBase.position,
@@ -188,6 +190,7 @@ function initDashboardCharts(dailyData, monthlyData, chartYear) {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         position: legendBase.position,

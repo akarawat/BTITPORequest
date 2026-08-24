@@ -55,7 +55,7 @@
         <div class="bt-stat-card">
             <div class="bt-stat-icon bg-success-subtle text-success"><i class="bi bi-currency-exchange"></i></div>
             <div class="bt-stat-value">@Model.TotalAmount.ToString("N0")</div>
-            <div class="bt-stat-label">Total Baht</div>
+            <div class="bt-stat-label">Total Baht <small class="text-muted">(Completed)</small></div>
         </div>
     </div>
     <div class="col-6 col-lg-2">
@@ -101,10 +101,12 @@
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-transparent border-0 pb-0">
-                <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Daily PO Amount (Baht)</h6>
+                <h6 class="fw-semibold mb-0"><i class="bi bi-bar-chart me-2 text-primary"></i>Daily PO Amount — Completed (Baht)</h6>
             </div>
             <div class="card-body">
-                <canvas id="dailyChart" height="80"></canvas>
+                <div style="position:relative; height:280px;">
+                    <canvas id="dailyChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -120,7 +122,9 @@
                 </h6>
             </div>
             <div class="card-body pt-2">
-                <canvas id="monthlyCountChart" height="110"></canvas>
+                <div style="position:relative; height:240px;">
+                    <canvas id="monthlyCountChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -132,7 +136,9 @@
                 </h6>
             </div>
             <div class="card-body pt-2">
-                <canvas id="monthlyAmountChart" height="110"></canvas>
+                <div style="position:relative; height:240px;">
+                    <canvas id="monthlyAmountChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
